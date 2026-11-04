@@ -8,6 +8,9 @@
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<!-- jsPDF & autoTable for native client-side PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{
   --pink:#ff3d81;--mint:#3ddc97;--canary:#ffd23f;--lilac:#c8a2ff;--coral:#ff6b5e;--ink:#111111;--cream:#fdf9f0;
@@ -26,6 +29,9 @@ h1,h2,h3{font-family:'Archivo Black',Impact,sans-serif;text-transform:uppercase;
 .nb-btn{border:2px solid var(--ink);border-radius:8px;box-shadow:4px 4px 0 0 var(--ink);font-weight:700;padding:.5rem 1rem;font-size:.875rem;cursor:pointer;color:var(--ink);background:#fff;transition:transform .08s,box-shadow .08s;display:inline-flex;align-items:center;justify-content:center;gap:.35rem}
 .nb-btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 0 var(--ink)}
 .nb-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 0 var(--ink)}
+.nb-key{border:2px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 0 var(--ink);font-family:'Space Mono',monospace;font-weight:700;font-size:1.25rem;cursor:pointer;color:var(--ink);background:#fff;transition:transform .08s,box-shadow .08s;display:flex;align-items:center;justify-content:center;height:52px}
+.nb-key:hover{background:var(--canary);transform:translate(-1px,-1px);box-shadow:4px 4px 0 0 var(--ink)}
+.nb-key:active{transform:translate(2px,2px);box-shadow:0 0 0 0 var(--ink)}
 .nb-in{width:100%;border:2px solid var(--ink);border-radius:8px;background:#fff;padding:.5rem .75rem;font-size:.875rem;font-weight:600;color:var(--ink);outline:none;transition:box-shadow .1s}
 .nb-in:focus{box-shadow:4px 4px 0 0 var(--pink)}
 .tag{display:inline-block;border:2px solid var(--ink);border-radius:9999px;padding:.12rem .65rem;font-weight:700}
@@ -42,6 +48,13 @@ h1,h2,h3{font-family:'Archivo Black',Impact,sans-serif;text-transform:uppercase;
 .pilih-opt:last-child{border-bottom:0}
 .pilih-opt:hover{background:var(--canary)}
 .nb-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:4px 4px 0 0 var(--ink)}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.shake { animation: shake .35s ease-in-out; }
 
 @media (hover:none){.nb-card:hover{transform:none;box-shadow:6px 6px 0 0 var(--ink)}}
 @media (max-width:640px){
@@ -79,6 +92,11 @@ const tgl=s=>{if(!s)return '';const p=s.split('-');return p.length===3?p[2]+'/'+
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const empty=()=>({tanggal:today(),ket:'',jenis:'D',jumlah:''});
 
+// Helper generate random 4-digit PIN string
+const generatePin=()=>{
+  return String(Math.floor(1000 + Math.random() * 9000));
+};
+
 const dummyData=[
   {id:1,tanggal:today(),ket:'Modal Kas Awal Usaha',jenis:'D',jumlah:5000000},
   {id:2,tanggal:today(),ket:'Penjualan Harian Toko',jenis:'D',jumlah:1850000},
@@ -89,6 +107,7 @@ const dummyData=[
 const ico=(paths)=>h('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2.5,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':'true'},paths.map((d,i)=>h('path',{key:i,d:d})));
 const IcoEdit=()=>ico(['M12 20h9','M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z']);
 const IcoTrash=()=>ico(['M3 6h18','M8 6V4h8v2','M19 6l-1 14H6L5 6','M10 11v6','M14 11v6']);
+const IcoLock=()=>ico(['M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z','M7 11V7a5 5 0 0 1 10 0v4']);
 const kunci=t=>t.tanggal+'|'+t.ket+'|'+t.jenis+'|'+t.jumlah;
 
 const parseCsv=(text)=>{
@@ -160,6 +179,121 @@ function Modal(p){
       h('div',{className:'mt-5 flex flex-wrap justify-end gap-3'},p.actions)));
 }
 
+// Layar Kunci PIN Manual (Harus Diklik Angkanya Satu Per Satu)
+function PinLockScreen({targetPin, onUnlock, onRegeneratePin}){
+  const [entered, setEntered]=useState('');
+  const [errorMsg, setErrorMsg]=useState(null);
+  const [isShaking, setIsShaking]=useState(false);
+
+  const handleDigit=(d)=>{
+    if(entered.length < 4){
+      const next = entered + d;
+      setEntered(next);
+      setErrorMsg(null);
+    }
+  };
+
+  const handleBackspace=()=>{
+    setEntered(prev => prev.slice(0, -1));
+    setErrorMsg(null);
+  };
+
+  const handleClear=()=>{
+    setEntered('');
+    setErrorMsg(null);
+  };
+
+  const handleVerifikasi=()=>{
+    if(entered.length < 4){
+      setErrorMsg('Masukkan 4 digit PIN terlebih dahulu!');
+      return;
+    }
+    if(entered === targetPin){
+      onUnlock();
+    } else {
+      setIsShaking(true);
+      setErrorMsg('PIN salah, silakan cocokkan dengan kode di atas!');
+      setTimeout(()=>{
+        setIsShaking(false);
+        setEntered('');
+      }, 450);
+    }
+  };
+
+  return h('div',{className:'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm'},
+    h('div',{className:'nb-card max-w-sm w-full p-6 text-center ' + (isShaking ? 'shake' : ''), style:{background:'#fff'}},
+      h('div',{className:'w-12 h-12 rounded-full border-2 border-black bg-canary mx-auto flex items-center justify-center mb-3 shadow-[3px_3px_0_0_#111]'},
+        h('span',{className:'text-xl'},'🔒')
+      ),
+      h('h2',{className:'text-xl tracking-tight'},'Akses Buku Kas'),
+      h('p',{className:'text-xs font-semibold text-slate-600 mt-1'},'Klik tombol angka pada keypad di bawah sesuai PIN acak.'),
+
+      h('div',{className:'mt-4 p-3.5 rounded-xl border-2 border-black bg-cream shadow-[3px_3px_0_0_#111]'},
+        h('div',{className:'text-[11px] font-bold uppercase tracking-wider text-slate-500'},'PIN Acak Saat Ini:'),
+        h('div',{className:'text-3xl font-extrabold mono tracking-widest text-pink-600 mt-1 select-none'},targetPin),
+        h('button',{
+          type:'button',
+          onClick:()=>{ onRegeneratePin(); setEntered(''); setErrorMsg(null); },
+          className:'mt-2 text-xs font-bold text-slate-700 hover:text-black underline'
+        },'↻ Ganti PIN Acak Baru')
+      ),
+
+      h('div',{className:'my-5 flex justify-center gap-3'},
+        [0,1,2,3].map(i => {
+          const filled = i < entered.length;
+          const char = filled ? entered[i] : '';
+          const bgClass = filled ? (i===0?'bg-mint':i===1?'bg-canary':i===2?'bg-lilac':'bg-pink') : 'bg-slate-100';
+          return h('div',{
+            key: i,
+            className:`w-10 h-11 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#111] font-mono font-bold text-lg flex items-center justify-center transition-all ${bgClass}`
+          }, char ? '•' : '');
+        })
+      ),
+
+      errorMsg ? h('p',{className:'text-xs font-bold text-coral mb-3'},
+        h('span',{className:'tag coral'},errorMsg)
+      ) : null,
+
+      h('div',{className:'grid grid-cols-3 gap-2.5 mt-2'},
+        ['1','2','3','4','5','6','7','8','9'].map(num => 
+          h('button',{
+            key: num,
+            type: 'button',
+            onClick: () => handleDigit(num),
+            className: 'nb-key'
+          }, num)
+        ),
+        h('button',{
+          type: 'button',
+          onClick: handleClear,
+          className: 'nb-key text-xs font-bold text-slate-600 hover:bg-coral hover:text-white',
+          title: 'Hapus Semua'
+        }, 'C'),
+        h('button',{
+          type: 'button',
+          onClick: () => handleDigit('0'),
+          className: 'nb-key'
+        }, '0'),
+        h('button',{
+          type: 'button',
+          onClick: handleBackspace,
+          className: 'nb-key text-base font-bold hover:bg-coral hover:text-white',
+          title: 'Hapus Satu Digit'
+        }, '⌫')
+      ),
+
+      h('div',{className:'mt-4 pt-3 border-t-2 border-slate-200'},
+        h('button',{
+          type:'button',
+          onClick: handleVerifikasi,
+          disabled: entered.length < 4,
+          className:'nb-btn mint w-full text-sm font-bold py-2.5'
+        }, '🔓 Buka Kunci Aplikasi')
+      )
+    )
+  );
+}
+
 function App(){
   const [txs,setTxs]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -171,6 +305,10 @@ function App(){
   const [impTeks,setImpTeks]=useState('');
   const [impMsg,setImpMsg]=useState(null);
   const [toast,setToast]=useState(null);
+
+  // Fitur PIN Acak State
+  const [isLocked, setIsLocked]=useState(true);
+  const [currentPin, setCurrentPin]=useState(generatePin());
 
   const notify=(text,type='success')=>{
     setToast({text,type});
@@ -291,6 +429,120 @@ function App(){
     notify('File CSV berhasil diunduh!');
   };
 
+  // Fungsi Generator PDF Resmi menggunakan jsPDF & AutoTable
+  const unduhPdf=()=>{
+    try {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        // Fallback jika library belum termuat
+        window.print();
+        return;
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      // Header Judul Laporan
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(17, 17, 17);
+      doc.text('LAPORAN BUKU KAS (DEBET KREDIT)', 14, 18);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Dicetak pada: ' + new Date().toLocaleString('id-ID') + ' • Periode: ' + (flt.dari || 'Awal') + ' s/d ' + (flt.sampai || 'Sekarang'), 14, 24);
+
+      // Kotak Ringkasan Keuangan
+      doc.setDrawColor(17, 17, 17);
+      doc.setLineWidth(0.5);
+
+      // Card Debet (Mint)
+      doc.setFillColor(209, 250, 229);
+      doc.roundedRect(14, 28, 56, 16, 2, 2, 'FD');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(4, 120, 87);
+      doc.text('TOTAL DEBET (MASUK)', 18, 33);
+      doc.setFontSize(11);
+      doc.text(rp(totD), 18, 40);
+
+      // Card Kredit (Coral)
+      doc.setFillColor(255, 228, 230);
+      doc.roundedRect(74, 28, 56, 16, 2, 2, 'FD');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(190, 18, 60);
+      doc.text('TOTAL KREDIT (KELUAR)', 78, 33);
+      doc.setFontSize(11);
+      doc.text(rp(totK), 78, 40);
+
+      // Card Saldo (Canary)
+      doc.setFillColor(254, 240, 138);
+      doc.roundedRect(134, 28, 62, 16, 2, 2, 'FD');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(17, 17, 17);
+      doc.text('SALDO AKHIR BERJALAN', 138, 33);
+      doc.setFontSize(11);
+      doc.text(rp(saldo), 138, 40);
+
+      // Data Tabel
+      const tableData = shown.map((t, idx) => [
+        String(idx + 1),
+        tgl(t.tanggal),
+        t.ket,
+        t.jenis === 'D' ? rp(t.jumlah) : '-',
+        t.jenis === 'K' ? rp(t.jumlah) : '-',
+        rp(t.saldo)
+      ]);
+
+      doc.autoTable({
+        startY: 48,
+        head: [['No', 'Tanggal', 'Keterangan Transaksi', 'Debet (+)', 'Kredit (-)', 'Saldo']],
+        body: tableData,
+        theme: 'grid',
+        styles: {
+          fontSize: 8.5,
+          font: 'helvetica',
+          textColor: [17, 17, 17],
+          lineColor: [17, 17, 17],
+          lineWidth: 0.2,
+          cellPadding: 2.5
+        },
+        headStyles: {
+          fillColor: [255, 210, 63],
+          textColor: [17, 17, 17],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          1: { halign: 'center', cellWidth: 24 },
+          2: { halign: 'left' },
+          3: { halign: 'right', cellWidth: 32, textColor: [4, 120, 87] },
+          4: { halign: 'right', cellWidth: 32, textColor: [190, 18, 60] },
+          5: { halign: 'right', cellWidth: 34, fontStyle: 'bold' }
+        },
+        didDrawPage: function(data) {
+          // Footer Nomor Halaman
+          const str = 'Halaman ' + doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setTextColor(120);
+          doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 8);
+          doc.text('Buku Debet Kredit Standar UMKM', doc.internal.pageSize.width - data.settings.margin.right - 45, doc.internal.pageSize.height - 8);
+        }
+      });
+
+      doc.save('buku-debet-kredit-' + today() + '.pdf');
+      notify('File PDF berhasil dibuat dan diunduh!');
+      setModal(null);
+    } catch(err) {
+      console.error('Gagal cetak PDF:', err);
+      // Fallback ke window print
+      window.print();
+      notify('Membuka dialog cetak browser...');
+    }
+  };
+
   const field=(label,el,er)=>h('div',null,
     h('label',{className:'block text-xs font-bold uppercase mb-1'},label),el,
     er?h('p',{className:'text-xs font-bold mt-1'},h('span',{className:'tag coral'},er)):null);
@@ -300,33 +552,69 @@ function App(){
   const set=(k)=>(e)=>setF(Object.assign({},f,{[k]:e.target.value}));
   const setFl=(k)=>(e)=>setFlt(Object.assign({},flt,{[k]:e.target.value}));
 
+  const kunciAplikasi=()=>{
+    const newPin = generatePin();
+    setCurrentPin(newPin);
+    setIsLocked(true);
+    notify('Aplikasi berhasil dikunci!');
+  };
+
   if(loading)return h('div',{className:'p-10 text-center font-bold'},'Memuat data buku kas...');
 
   return h('div',{className:'mx-auto max-w-5xl p-4 sm:p-6 space-y-5'},
+    // Layar Kunci PIN Manual
+    isLocked ? h(PinLockScreen, {
+      targetPin: currentPin,
+      onUnlock: () => {
+        setIsLocked(false);
+        notify('Kunci berhasil dibuka!');
+      },
+      onRegeneratePin: () => {
+        const nextPin = generatePin();
+        setCurrentPin(nextPin);
+        notify('PIN acak baru: ' + nextPin);
+      }
+    }) : null,
+
     toast?h('div',{className:'fixed top-4 right-4 z-50 p-3 bg-white border-2 border-black rounded-lg shadow-[4px_4px_0_0_#111] flex items-center gap-2 text-xs font-bold'},
       h('span',{className:'w-2.5 h-2.5 rounded-full '+(toast.type==='error'?'bg-coral':'bg-mint')}),
       h('span',null,toast.text),
       h('button',{type:'button',onClick:()=>setToast(null),className:'ml-2 text-slate-500 hover:text-black font-extrabold'},'✕')
     ):null,
 
+    // Header Title & Action Buttons
     h('div',{className:'flex flex-wrap items-center justify-between gap-3'},
-      h('h1',{className:'text-2xl sm:text-3xl'},h('span',{className:'tag pink',style:{borderRadius:'8px',padding:'.2rem .7rem',boxShadow:'4px 4px 0 0 #111'}},'Buku Debet Kredit')),
+      h('div',{className:'flex items-center gap-2'},
+        h('h1',{className:'text-2xl sm:text-3xl'},
+          h('span',{className:'tag pink',style:{borderRadius:'8px',padding:'.2rem .7rem',boxShadow:'4px 4px 0 0 #111'}},'Buku Debet Kredit')
+        ),
+        h('button',{
+          type:'button',
+          onClick:kunciAplikasi,
+          className:'nb-btn canary text-xs px-2.5 py-1.5',
+          title:'Kunci Aplikasi dengan PIN Acak'
+        }, h(IcoLock), h('span',null,'Kunci'))
+      ),
       h('div',{className:'flex flex-wrap gap-2 sm:gap-3 no-print'},
         h('button',{type:'button',onClick:()=>{setImpMsg(null);setImpTeks('');setModal({t:'impor'});},className:'nb-btn canary'},'Impor CSV'),
         h('button',{type:'button',onClick:()=>setModal({t:'csv'}),className:'nb-btn lilac'},'Ekspor CSV'),
-        h('button',{type:'button',onClick:()=>window.print(),className:'nb-btn cream'},'Cetak PDF'),
+        h('button',{type:'button',onClick:()=>setModal({t:'pdf'}),className:'nb-btn mint font-bold'},'📄 Cetak PDF'),
         h('button',{type:'button',onClick:()=>setModal({t:'reset'}),className:'nb-btn coral'},'Reset Data'))),
 
-    h('div',{className:'flex items-center gap-2'},
-      h('span',{className:'tag mint text-xs'},'Data Tersimpan Otomatis di Browser Ini (Offline Ready)'),
+    // Status Badges
+    h('div',{className:'flex flex-wrap items-center gap-2'},
+      h('span',{className:'tag mint text-xs'},'Keamanan: Input PIN Acak Manual'),
+      h('span',{className:'tag canary text-xs'},'Tersimpan Otomatis di Browser Ini (Offline Ready)'),
       h('span',{className:'text-xs font-bold mono text-slate-600'},'• '+txs.length+' transaksi tersimpan')
     ),
 
+    // 3 Stat Cards
     h('div',{className:'grid grid-cols-1 sm:grid-cols-3 gap-4'},
       stat('Total Debet',rp(totD),'mint'),
       stat('Total Kredit',rp(totK),'coral'),
       stat('Saldo (Debet - Kredit)',rp(saldo),saldo<0?'pink':'canary')),
 
+    // Form Tambah/Edit Transaksi
     h('div',{className:'nb-card p-4 sm:p-5 no-print'},
       h('h2',{className:'text-lg mb-3'},editId?'Edit Transaksi':'Tambah Transaksi'),
       h('div',{className:'grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'},
@@ -337,9 +625,10 @@ function App(){
           value:f.jumlah?Number(f.jumlah).toLocaleString('id-ID'):'',
           onChange:e=>setF(Object.assign({},f,{jumlah:e.target.value.replace(/\D/g,'').slice(0,13)}))}),err.jumlah)),
       h('div',{className:'mt-4 flex gap-3'},
-        h('button',{type:'button',onClick:submit,className:'nb-btn mint'},editId?'Simpan Perubahan':'+ Tambah Transaksi'),
+        h('button',{type:'button',onClick:submit,className:'nb-btn mint font-bold'},editId?'Simpan Perubahan':'+ Tambah Transaksi'),
         editId?h('button',{type:'button',onClick:cancel,className:'nb-btn'},'Batal'):null)),
 
+    // Filter & Table
     h('div',{className:'nb-card p-4 sm:p-5'},
       h('div',{className:'grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 no-print'},
         field('Dari tanggal',h('input',{type:'date',className:'nb-in',value:flt.dari,onChange:setFl('dari')})),
@@ -350,7 +639,7 @@ function App(){
           h('thead',null,h('tr',{className:'text-left'},
             ['Tanggal','Keterangan','Debet','Kredit','Saldo','Aksi'].map((c,i)=>h('th',{key:c,className:'px-3 py-2.5 '+(i>=2&&i<5?'text-right':'')},c)))),
           h('tbody',null,
-            shown.length===0?h('tr',null,h('td',{colSpan:6,className:'px-3 py-8 text-center font-bold',style:{borderBottom:0}},'Belum ada transaksi.')):
+            shown.length===0?h('tr',null,h('td',{colSpan:6,className:'px-3 py-8 text-center font-bold text-slate-500',style:{borderBottom:0}},'Belum ada transaksi.')):
             shown.map(t=>h('tr',{key:t.id},
               h('td',{'data-label':'Tanggal',className:'mono px-3 py-2.5 whitespace-nowrap'},tgl(t.tanggal)),
               h('td',{'data-label':'Keterangan',className:'px-3 py-2.5 font-semibold'},t.ket),
@@ -361,6 +650,46 @@ function App(){
                 h('div',{className:'flex gap-2 justify-end sm:justify-start'},
                 h('button',{type:'button',onClick:()=>edit(t),className:'ico-btn canary',title:'Edit','aria-label':'Edit'},h(IcoEdit)),
                 h('button',{type:'button',onClick:()=>setModal({t:'del',id:t.id}),className:'ico-btn coral',title:'Hapus','aria-label':'Hapus'},h(IcoTrash)))))))))),
+
+    // Modal Pilihan Cetak PDF
+    modal&&modal.t==='pdf'?h(Modal,{title:'Cetak Laporan / PDF',
+      actions:[
+        h('button',{key:'c',type:'button',onClick:()=>setModal(null),className:'nb-btn'},'Batal')
+      ]},
+      h('p',{className:'text-xs font-semibold text-slate-600 mb-4'},
+        'Laporan dicetak rapi pada format kertas A4 standar akuntansi UMKM, lengkap dengan ringkasan total debet, kredit, dan saldo berjalan.'
+      ),
+      h('div',{className:'space-y-3'},
+        h('button',{
+          type:'button',
+          onClick:unduhPdf,
+          className:'nb-btn mint w-full text-left p-3.5 flex items-center justify-between text-xs sm:text-sm font-bold shadow-[4px_4px_0_0_#111]'
+        },
+          h('div',{className:'flex items-center gap-2.5'},
+            h('span',{className:'text-xl'},'📥'),
+            h('div',null,
+              h('div',{className:'font-bold text-slate-900'},'Unduh Dokumen PDF (.pdf)'),
+              h('div',{className:'text-[11px] font-normal text-slate-700'},'Langsung simpan file dokumen PDF ke HP / Komputer')
+            )
+          ),
+          h('span',{className:'text-xs'},'➔')
+        ),
+        h('button',{
+          type:'button',
+          onClick:()=>{ setModal(null); setTimeout(()=>window.print(), 200); },
+          className:'nb-btn canary w-full text-left p-3.5 flex items-center justify-between text-xs sm:text-sm font-bold shadow-[4px_4px_0_0_#111]'
+        },
+          h('div',{className:'flex items-center gap-2.5'},
+            h('span',{className:'text-xl'},'🖨️'),
+            h('div',null,
+              h('div',{className:'font-bold text-slate-900'},'Buka Dialog Cetak Browser'),
+              h('div',{className:'text-[11px] font-normal text-slate-700'},'Kirim ke printer fisik atau gunakan fitur cetak bawaan')
+            )
+          ),
+          h('span',{className:'text-xs'},'➔')
+        )
+      )
+    ):null,
 
     modal&&modal.t==='del'?h(Modal,{title:'Hapus transaksi?',
       actions:[h('button',{key:'b',type:'button',onClick:()=>setModal(null),className:'nb-btn'},'Batal'),
