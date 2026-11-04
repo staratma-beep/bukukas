@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Buku Debet Kredit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<style>
+:root{
+  --pink:#ff3d81;--mint:#3ddc97;--canary:#ffd23f;--lilac:#c8a2ff;--coral:#ff6b5e;--ink:#111111;--cream:#fdf9f0;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;font-weight:500;background-color:var(--cream);
+  background-image:linear-gradient(rgba(17,17,17,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(17,17,17,.05) 1px,transparent 1px);background-size:24px 24px;
+}
+h1,h2,h3{font-family:'Archivo Black',Impact,sans-serif;text-transform:uppercase;letter-spacing:-.02em;font-weight:400}
+.mono{font-family:'Space Mono',ui-monospace,monospace}
+.nb-card{background:#fff;border:2px solid var(--ink);border-radius:18px;box-shadow:6px 6px 0 0 var(--ink);transition:transform .12s,box-shadow .12s}
+.nb-card:hover{transform:translate(-2px,-2px);box-shadow:9px 9px 0 0 var(--ink)}
+.nb-modal{background:#fff;border:2px solid var(--ink);border-radius:18px;box-shadow:9px 9px 0 0 var(--ink);max-height:90vh;overflow-y:auto}
+.nb-btn{border:2px solid var(--ink);border-radius:8px;box-shadow:4px 4px 0 0 var(--ink);font-weight:700;padding:.5rem 1rem;font-size:.875rem;cursor:pointer;color:var(--ink);background:#fff;transition:transform .08s,box-shadow .08s;display:inline-flex;align-items:center;justify-content:center;gap:.35rem}
+.nb-btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 0 var(--ink)}
+.nb-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 0 var(--ink)}
+.nb-in{width:100%;border:2px solid var(--ink);border-radius:8px;background:#fff;padding:.5rem .75rem;font-size:.875rem;font-weight:600;color:var(--ink);outline:none;transition:box-shadow .1s}
+.nb-in:focus{box-shadow:4px 4px 0 0 var(--pink)}
+.tag{display:inline-block;border:2px solid var(--ink);border-radius:9999px;padding:.12rem .65rem;font-weight:700}
+.pink{background:var(--pink)}.mint{background:var(--mint)}.canary{background:var(--canary)}.lilac{background:var(--lilac)}.coral{background:var(--coral)}.cream{background:var(--cream)}
+.nb-table th{background:var(--canary);border-bottom:2px solid var(--ink);text-transform:uppercase;font-size:.7rem;letter-spacing:.05em}
+.nb-table td{border-bottom:2px solid var(--ink)}
+.link{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;cursor:pointer;background:none;border:0;color:var(--ink)}
+.link:hover{background:var(--canary)}
+.ico-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:2px solid var(--ink);border-radius:8px;box-shadow:3px 3px 0 0 var(--ink);cursor:pointer;color:var(--ink);transition:transform .08s,box-shadow .08s;background:#fff}
+.ico-btn:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 0 var(--ink)}
+.ico-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 0 var(--ink)}
+.pilih-list{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:30;background:#fff;border:2px solid var(--ink);border-radius:12px;box-shadow:6px 6px 0 0 var(--ink);overflow:hidden}
+.pilih-opt{display:block;width:100%;text-align:left;padding:.65rem .75rem;font:inherit;font-weight:700;border:0;border-bottom:2px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer}
+.pilih-opt:last-child{border-bottom:0}
+.pilih-opt:hover{background:var(--canary)}
+.nb-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:4px 4px 0 0 var(--ink)}
+
+@media (hover:none){.nb-card:hover{transform:none;box-shadow:6px 6px 0 0 var(--ink)}}
+@media (max-width:640px){
+  .nb-in{font-size:16px;min-height:44px}
+  .nb-btn{min-height:44px}
+  .ico-btn{width:44px;height:44px}
+  .tbl-wrap{border:0!important;overflow:visible!important;border-radius:0!important}
+  .nb-table,.nb-table tbody{display:block}
+  .nb-table thead{display:none}
+  .nb-table tr{display:block;border:2px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 0 var(--ink);background:#fff;margin-bottom:16px;overflow:hidden}
+  .nb-table td{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:right;white-space:normal!important;word-break:break-word;padding:.6rem .75rem!important}
+  .nb-table td::before{content:attr(data-label);font-family:'Space Grotesk',sans-serif;font-weight:700;text-transform:uppercase;font-size:.7rem;letter-spacing:.05em;text-align:left;flex-shrink:0}
+  .nb-table td:first-child{background:var(--canary)}
+  .nb-table td:empty{display:none}
+  .nb-table td:last-child{border-bottom:0}
+  .nb-table td[colspan]{justify-content:center}
+  .nb-table td[colspan]::before{content:none}
+}
+@media print {
+  body{background:#fff!important;background-image:none!important}
+  .no-print{display:none!important}
+  .nb-card{box-shadow:none!important;border:1px solid #111!important}
+  .nb-table th{background:#eee!important}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {useState,useEffect,useMemo,useRef}=React;
+const h=React.createElement;
+const KEY='debet-kredit-v1';
+const rp=n=>(n<0?'-':'')+'Rp'+Math.abs(n).toLocaleString('id-ID');
+const tgl=s=>{if(!s)return '';const p=s.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:s};
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const empty=()=>({tanggal:today(),ket:'',jenis:'D',jumlah:''});
+
+const dummyData=[
+  {id:1,tanggal:today(),ket:'Modal Kas Awal Usaha',jenis:'D',jumlah:5000000},
+  {id:2,tanggal:today(),ket:'Penjualan Harian Toko',jenis:'D',jumlah:1850000},
+  {id:3,tanggal:today(),ket:'Beli Stok Barang & Plastik',jenis:'K',jumlah:950000},
+  {id:4,tanggal:today(),ket:'Bayar Listrik & Token PLN',jenis:'K',jumlah:350000}
+];
+
+const ico=(paths)=>h('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2.5,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':'true'},paths.map((d,i)=>h('path',{key:i,d:d})));
+const IcoEdit=()=>ico(['M12 20h9','M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z']);
+const IcoTrash=()=>ico(['M3 6h18','M8 6V4h8v2','M19 6l-1 14H6L5 6','M10 11v6','M14 11v6']);
+const kunci=t=>t.tanggal+'|'+t.ket+'|'+t.jenis+'|'+t.jumlah;
+
+const parseCsv=(text)=>{
+  text=text.replace(/^\uFEFF/,'');
+  const first=text.split('\n')[0]||'';
+  const d=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?';':',';
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"')q=true;
+    else if(c===d){row.push(cur);cur='';}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cur);cur='';if(row.some(x=>x.trim()!==''))rows.push(row);row=[];}
+    else cur+=c;
+  }
+  row.push(cur);if(row.some(x=>x.trim()!==''))rows.push(row);
+  return rows;
+};
+
+const normTgl=(s)=>{
+  s=(s||'').trim();
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/),y,mo,da;
+  if(m){y=m[1];mo=m[2];da=m[3];}
+  else{m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);if(!m)return null;da=m[1];mo=m[2];y=m[3];}
+  mo=mo.padStart(2,'0');da=da.padStart(2,'0');
+  if(+mo<1||+mo>12||+da<1||+da>31)return null;
+  return y+'-'+mo+'-'+da;
+};
+
+const angka=(s)=>parseInt(String(s||'').trim().replace(/[.,]00$/,'').replace(/[^\d]/g,'')||'0',10);
+
+const bacaTx=(text)=>{
+  const rows=parseCsv(text);
+  if(rows.length<2)return {error:'File kosong atau hanya berisi baris judul header.'};
+  const head=rows[0].map(x=>x.trim().toLowerCase());
+  const iT=head.indexOf('tanggal'),iK=head.indexOf('keterangan'),iD=head.indexOf('debet'),iKr=head.indexOf('kredit');
+  if(iT<0||iK<0||iD<0||iKr<0)return {error:'Baris pertama harus berisi header: Tanggal, Keterangan, Debet, Kredit.'};
+  const txs=[];let skip=0;
+  rows.slice(1).forEach((r,i)=>{
+    const tanggal=normTgl(r[iT]),ket=(r[iK]||'').trim(),dbt=angka(r[iD]),krd=angka(r[iKr]);
+    if(!tanggal||!ket||(dbt>0)===(krd>0)){skip++;return;}
+    txs.push({id:Date.now()+i,tanggal:tanggal,ket:ket,jenis:dbt>0?'D':'K',jumlah:dbt>0?dbt:krd});
+  });
+  return {txs:txs,skip:skip};
+};
+
+function Pilih(p){
+  const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    const close=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    const esc=e=>{if(e.key==='Escape')setOpen(false);};
+    document.addEventListener('mousedown',close);document.addEventListener('keydown',esc);
+    return ()=>{document.removeEventListener('mousedown',close);document.removeEventListener('keydown',esc);};
+  },[]);
+  const cur=p.opsi.find(o=>o.v===p.value)||p.opsi[0];
+  return h('div',{ref:ref,className:'relative'},
+    h('button',{type:'button',onClick:()=>setOpen(!open),className:'nb-in flex items-center justify-between '+cur.c,style:{cursor:'pointer',boxShadow:open?'4px 4px 0 0 #111':'none'},'aria-haspopup':'listbox','aria-expanded':open},
+      h('span',null,cur.l),
+      h('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:3,strokeLinecap:'round',strokeLinejoin:'round',style:{transform:open?'rotate(180deg)':'none',transition:'transform .15s'},'aria-hidden':'true'},h('path',{d:'M6 9l6 6 6-6'}))),
+    open?h('div',{className:'pilih-list',role:'listbox'},p.opsi.map(o=>h('button',{key:o.v,type:'button',role:'option','aria-selected':o.v===p.value,className:'pilih-opt'+(o.v===p.value?' '+o.c:''),onClick:()=>{p.onChange(o.v);setOpen(false);}},o.l))):null);
+}
+
+function Modal(p){
+  return h('div',{className:'fixed inset-0 z-50 flex items-center justify-center p-4',style:{background:'rgba(17,17,17,.65)'}},
+    h('div',{className:'nb-modal w-full max-w-md p-5'},
+      h('h3',{className:'text-lg mb-2'},p.title),
+      p.children,
+      h('div',{className:'mt-5 flex flex-wrap justify-end gap-3'},p.actions)));
+}
+
+function App(){
+  const [txs,setTxs]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [f,setF]=useState(empty());
+  const [editId,setEditId]=useState(null);
+  const [err,setErr]=useState({});
+  const [flt,setFlt]=useState({dari:'',sampai:'',q:''});
+  const [modal,setModal]=useState(null);
+  const [impTeks,setImpTeks]=useState('');
+  const [impMsg,setImpMsg]=useState(null);
+  const [toast,setToast]=useState(null);
+
+  const notify=(text,type='success')=>{
+    setToast({text,type});
+    setTimeout(()=>setToast(null),3200);
+  };
+
+  useEffect(()=>{
+    try{
+      const r=localStorage.getItem(KEY);
+      if(r){
+        setTxs(JSON.parse(r));
+      } else {
+        setTxs(dummyData);
+        localStorage.setItem(KEY,JSON.stringify(dummyData));
+      }
+    }catch(e){
+      setTxs(dummyData);
+    }
+    setLoading(false);
+  },[]);
+
+  const save=list=>{
+    setTxs(list);
+    try{localStorage.setItem(KEY,JSON.stringify(list));}catch(e){}
+  };
+
+  const rows=useMemo(()=>{
+    const s=[...txs].sort((a,b)=>a.tanggal.localeCompare(b.tanggal)||a.id-b.id);
+    let saldo=0;
+    return s.map(t=>{saldo+=t.jenis==='D'?t.jumlah:-t.jumlah;return Object.assign({},t,{saldo:saldo});});
+  },[txs]);
+
+  const shown=rows.filter(t=>
+    (!flt.dari||t.tanggal>=flt.dari)&&(!flt.sampai||t.tanggal<=flt.sampai)&&
+    (!flt.q||t.ket.toLowerCase().includes(flt.q.toLowerCase())));
+
+  const totD=txs.filter(t=>t.jenis==='D').reduce((a,t)=>a+t.jumlah,0);
+  const totK=txs.filter(t=>t.jenis==='K').reduce((a,t)=>a+t.jumlah,0);
+  const saldo=totD-totK;
+
+  const submit=()=>{
+    const e={};
+    const n=parseInt(f.jumlah||'0',10);
+    if(!f.tanggal)e.tanggal='Tanggal wajib diisi';
+    if(!f.ket.trim())e.ket='Keterangan tidak boleh kosong';
+    if(!(n>0))e.jumlah='Jumlah harus lebih dari 0';
+    setErr(e);
+    if(Object.keys(e).length)return;
+    const data={tanggal:f.tanggal,ket:f.ket.trim(),jenis:f.jenis,jumlah:n};
+    if(editId){
+      save(txs.map(t=>t.id===editId?Object.assign({id:editId},data):t));
+      notify('Perubahan transaksi berhasil disimpan!');
+    } else {
+      save(txs.concat([Object.assign({id:Date.now()},data)]));
+      notify('Transaksi baru berhasil ditambahkan!');
+    }
+    setF(empty());setEditId(null);
+  };
+
+  const edit=t=>{setEditId(t.id);setF({tanggal:t.tanggal,ket:t.ket,jenis:t.jenis,jumlah:String(t.jumlah)});setErr({});window.scrollTo({top:0,behavior:'smooth'});};
+  const cancel=()=>{setEditId(null);setF(empty());setErr({});};
+
+  const pilihFile=e=>{
+    const fl=e.target.files&&e.target.files[0];
+    if(!fl)return;
+    const r=new FileReader();
+    r.onload=()=>{setImpTeks(String(r.result));setImpMsg(null);};
+    r.onerror=()=>setImpMsg({ok:false,text:'Gagal membaca file.'});
+    r.readAsText(fl);
+    e.target.value='';
+  };
+
+  const doImpor=(ganti)=>{
+    const r=bacaTx(impTeks);
+    if(r.error){setImpMsg({ok:false,text:r.error});return;}
+    let baru=r.txs,dup=0;
+    if(!ganti){
+      const ada=new Set(txs.map(kunci));
+      baru=baru.filter(t=>{if(ada.has(kunci(t))){dup++;return false;}return true;});
+    }
+    if(!baru.length){setImpMsg({ok:false,text:'Tidak ada transaksi baru yang bisa diimpor'+(dup?' ('+dup+' sudah ada)':'')+'.'});return;}
+    save(ganti?baru:txs.concat(baru));
+    if(ganti)cancel();
+    setImpTeks('');
+    setImpMsg({ok:true,text:'Berhasil mengimpor '+baru.length+' transaksi'+(r.skip?', '+r.skip+' baris dilewati':'')+(dup?', '+dup+' dilewati karena duplikat':'')+'.'});
+    notify('Impor data CSV berhasil!');
+  };
+  const tutupImpor=()=>{setModal(null);setImpMsg(null);setImpTeks('');};
+
+  const csv=()=>{
+    const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+    const lines=[['Tanggal','Keterangan','Debet','Kredit','Saldo'].join(',')];
+    shown.forEach(t=>lines.push([tgl(t.tanggal),q(t.ket),t.jenis==='D'?t.jumlah:0,t.jenis==='K'?t.jumlah:0,t.saldo].join(',')));
+    return lines.join('\n');
+  };
+
+  const copyCsv=()=>{
+    const box=document.getElementById('csvbox');
+    box.select();
+    try{
+      navigator.clipboard.writeText(box.value);
+      notify('Teks CSV berhasil disalin!');
+    }catch(e){
+      try{document.execCommand('copy');notify('Teks CSV berhasil disalin!');}
+      catch(e2){notify('Silakan salin teks secara manual','error');}
+    }
+  };
+
+  const unduhCsv=()=>{
+    const text=csv();
+    const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='buku-debet-kredit-'+today()+'.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    notify('File CSV berhasil diunduh!');
+  };
+
+  const field=(label,el,er)=>h('div',null,
+    h('label',{className:'block text-xs font-bold uppercase mb-1'},label),el,
+    er?h('p',{className:'text-xs font-bold mt-1'},h('span',{className:'tag coral'},er)):null);
+  const stat=(label,val,bg)=>h('div',{className:'nb-card p-4 '+bg},
+    h('p',{className:'text-xs font-bold uppercase'},label),
+    h('p',{className:'mono text-xl sm:text-2xl font-bold mt-1 break-all'},val));
+  const set=(k)=>(e)=>setF(Object.assign({},f,{[k]:e.target.value}));
+  const setFl=(k)=>(e)=>setFlt(Object.assign({},flt,{[k]:e.target.value}));
+
+  if(loading)return h('div',{className:'p-10 text-center font-bold'},'Memuat data buku kas...');
+
+  return h('div',{className:'mx-auto max-w-5xl p-4 sm:p-6 space-y-5'},
+    toast?h('div',{className:'fixed top-4 right-4 z-50 p-3 bg-white border-2 border-black rounded-lg shadow-[4px_4px_0_0_#111] flex items-center gap-2 text-xs font-bold'},
+      h('span',{className:'w-2.5 h-2.5 rounded-full '+(toast.type==='error'?'bg-coral':'bg-mint')}),
+      h('span',null,toast.text),
+      h('button',{type:'button',onClick:()=>setToast(null),className:'ml-2 text-slate-500 hover:text-black font-extrabold'},'✕')
+    ):null,
+
+    h('div',{className:'flex flex-wrap items-center justify-between gap-3'},
+      h('h1',{className:'text-2xl sm:text-3xl'},h('span',{className:'tag pink',style:{borderRadius:'8px',padding:'.2rem .7rem',boxShadow:'4px 4px 0 0 #111'}},'Buku Debet Kredit')),
+      h('div',{className:'flex flex-wrap gap-2 sm:gap-3 no-print'},
+        h('button',{type:'button',onClick:()=>{setImpMsg(null);setImpTeks('');setModal({t:'impor'});},className:'nb-btn canary'},'Impor CSV'),
+        h('button',{type:'button',onClick:()=>setModal({t:'csv'}),className:'nb-btn lilac'},'Ekspor CSV'),
+        h('button',{type:'button',onClick:()=>window.print(),className:'nb-btn cream'},'Cetak PDF'),
+        h('button',{type:'button',onClick:()=>setModal({t:'reset'}),className:'nb-btn coral'},'Reset Data'))),
+
+    h('div',{className:'flex items-center gap-2'},
+      h('span',{className:'tag mint text-xs'},'Data Tersimpan Otomatis di Browser Ini (Offline Ready)'),
+      h('span',{className:'text-xs font-bold mono text-slate-600'},'• '+txs.length+' transaksi tersimpan')
+    ),
+
+    h('div',{className:'grid grid-cols-1 sm:grid-cols-3 gap-4'},
+      stat('Total Debet',rp(totD),'mint'),
+      stat('Total Kredit',rp(totK),'coral'),
+      stat('Saldo (Debet - Kredit)',rp(saldo),saldo<0?'pink':'canary')),
+
+    h('div',{className:'nb-card p-4 sm:p-5 no-print'},
+      h('h2',{className:'text-lg mb-3'},editId?'Edit Transaksi':'Tambah Transaksi'),
+      h('div',{className:'grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'},
+        field('Tanggal',h('input',{type:'date',className:'nb-in',value:f.tanggal,onChange:set('tanggal')}),err.tanggal),
+        field('Jenis',h(Pilih,{value:f.jenis,onChange:v=>setF(Object.assign({},f,{jenis:v})),opsi:[{v:'D',l:'Debet (Pemasukan)',c:'mint'},{v:'K',l:'Kredit (Pengeluaran)',c:'coral'}]})),
+        field('Keterangan',h('input',{type:'text',className:'nb-in',placeholder:'Contoh: Penjualan harian, Beli stok',value:f.ket,onChange:set('ket')}),err.ket),
+        field('Jumlah (Rp)',h('input',{type:'text',inputMode:'numeric',className:'nb-in mono',placeholder:'0',
+          value:f.jumlah?Number(f.jumlah).toLocaleString('id-ID'):'',
+          onChange:e=>setF(Object.assign({},f,{jumlah:e.target.value.replace(/\D/g,'').slice(0,13)}))}),err.jumlah)),
+      h('div',{className:'mt-4 flex gap-3'},
+        h('button',{type:'button',onClick:submit,className:'nb-btn mint'},editId?'Simpan Perubahan':'+ Tambah Transaksi'),
+        editId?h('button',{type:'button',onClick:cancel,className:'nb-btn'},'Batal'):null)),
+
+    h('div',{className:'nb-card p-4 sm:p-5'},
+      h('div',{className:'grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 no-print'},
+        field('Dari tanggal',h('input',{type:'date',className:'nb-in',value:flt.dari,onChange:setFl('dari')})),
+        field('Sampai tanggal',h('input',{type:'date',className:'nb-in',value:flt.sampai,onChange:setFl('sampai')})),
+        field('Cari keterangan',h('input',{type:'text',className:'nb-in',placeholder:'Cari...',value:flt.q,onChange:setFl('q')}))),
+      h('div',{className:'overflow-x-auto tbl-wrap',style:{border:'2px solid #111',borderRadius:'10px'}},
+        h('table',{className:'nb-table w-full text-sm'},
+          h('thead',null,h('tr',{className:'text-left'},
+            ['Tanggal','Keterangan','Debet','Kredit','Saldo','Aksi'].map((c,i)=>h('th',{key:c,className:'px-3 py-2.5 '+(i>=2&&i<5?'text-right':'')},c)))),
+          h('tbody',null,
+            shown.length===0?h('tr',null,h('td',{colSpan:6,className:'px-3 py-8 text-center font-bold',style:{borderBottom:0}},'Belum ada transaksi.')):
+            shown.map(t=>h('tr',{key:t.id},
+              h('td',{'data-label':'Tanggal',className:'mono px-3 py-2.5 whitespace-nowrap'},tgl(t.tanggal)),
+              h('td',{'data-label':'Keterangan',className:'px-3 py-2.5 font-semibold'},t.ket),
+              h('td',{'data-label':'Debet',className:'mono px-3 py-2.5 text-right whitespace-nowrap font-bold'},t.jenis==='D'?h('span',{className:'tag mint'},rp(t.jumlah)):''),
+              h('td',{'data-label':'Kredit',className:'mono px-3 py-2.5 text-right whitespace-nowrap font-bold'},t.jenis==='K'?h('span',{className:'tag coral'},rp(t.jumlah)):''),
+              h('td',{'data-label':'Saldo',className:'mono px-3 py-2.5 text-right whitespace-nowrap font-bold'},h('span',{className:t.saldo<0?'tag pink':''},rp(t.saldo))),
+              h('td',{'data-label':'Aksi',className:'px-3 py-2.5 whitespace-nowrap no-print'},
+                h('div',{className:'flex gap-2 justify-end sm:justify-start'},
+                h('button',{type:'button',onClick:()=>edit(t),className:'ico-btn canary',title:'Edit','aria-label':'Edit'},h(IcoEdit)),
+                h('button',{type:'button',onClick:()=>setModal({t:'del',id:t.id}),className:'ico-btn coral',title:'Hapus','aria-label':'Hapus'},h(IcoTrash)))))))))),
+
+    modal&&modal.t==='del'?h(Modal,{title:'Hapus transaksi?',
+      actions:[h('button',{key:'b',type:'button',onClick:()=>setModal(null),className:'nb-btn'},'Batal'),
+        h('button',{key:'h',type:'button',onClick:()=>{save(txs.filter(t=>t.id!==modal.id));if(editId===modal.id)cancel();setModal(null);notify('Transaksi dihapus.');},className:'nb-btn coral'},'Hapus')]},
+      h('p',{className:'text-sm font-semibold'},'Transaksi ini akan dihapus permanen dari buku kas lokal Anda.')):null,
+
+    modal&&modal.t==='reset'?h(Modal,{title:'Reset semua data?',
+      actions:[h('button',{key:'b',type:'button',onClick:()=>setModal(null),className:'nb-btn'},'Batal'),
+        h('button',{key:'r',type:'button',onClick:()=>{save([]);cancel();setModal(null);notify('Data berhasil di-reset.');},className:'nb-btn coral'},'Ya, Reset')]},
+      h('p',{className:'text-sm font-semibold'},'Seluruh transaksi akan dihapus dan saldo kembali ke Rp 0.')):null,
+
+    modal&&modal.t==='impor'?h(Modal,{title:'Impor CSV',
+      actions:[
+        h('button',{key:'a',type:'button',disabled:!impTeks.trim(),onClick:()=>doImpor(false),className:'nb-btn mint'},'Tambahkan ke Data'),
+        h('button',{key:'g',type:'button',disabled:!impTeks.trim(),onClick:()=>doImpor(true),className:'nb-btn coral'},'Ganti Semua Data'),
+        h('button',{key:'t',type:'button',onClick:tutupImpor,className:'nb-btn'},'Tutup')]},
+      h('p',{className:'text-xs font-semibold mb-3'},'Pakai file hasil Ekspor CSV, atau CSV buatan sendiri dengan header: Tanggal, Keterangan, Debet, Kredit (kolom Saldo diabaikan). Tanggal boleh dd/mm/yyyy atau yyyy-mm-dd. Pemisah koma atau titik koma.'),
+      h('label',{className:'nb-btn lilac inline-block mb-3',style:{cursor:'pointer'}},'Pilih File CSV',
+        h('input',{type:'file',accept:'.csv,text/csv,text/plain',onChange:pilihFile,className:'hidden'})),
+      h('textarea',{rows:6,className:'nb-in mono text-xs',placeholder:'...atau tempel isi CSV di sini',value:impTeks,onChange:e=>{setImpTeks(e.target.value);setImpMsg(null);}}),
+      h('p',{className:'text-xs font-semibold mt-3'},'Tambahkan: baris yang sama persis dilewati. Ganti Semua: data lama ditimpa seluruhnya.'),
+      impMsg?h('p',{className:'mt-3 text-sm font-bold'},h('span',{className:'tag '+(impMsg.ok?'mint':'coral')},impMsg.text)):null):null,
+
+    modal&&modal.t==='csv'?h(Modal,{title:'Ekspor CSV',
+      actions:[
+        h('button',{key:'d',type:'button',onClick:unduhCsv,className:'nb-btn canary'},'Unduh File .CSV'),
+        h('button',{key:'s',type:'button',onClick:copyCsv,className:'nb-btn mint'},'Salin Teks'),
+        h('button',{key:'t',type:'button',onClick:()=>setModal(null),className:'nb-btn'},'Tutup')]},
+      h('p',{className:'text-xs font-semibold mb-2'},'Salin teks berikut atau unduh langsung sebagai file .csv. Isi mengikuti filter yang aktif.'),
+      h('textarea',{id:'csvbox',readOnly:true,rows:8,className:'nb-in mono text-xs select-all',value:csv()})):null
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>
