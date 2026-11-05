@@ -41,7 +41,24 @@ h1,h2,h3{font-family:'Archivo Black',Impact,sans-serif;text-transform:uppercase;
 .nb-btn{white-space:nowrap;border:2px solid var(--ink);border-radius:8px;box-shadow:4px 4px 0 0 var(--ink);font-weight:700;padding:.5rem 1rem;font-size:.875rem;cursor:pointer;color:var(--ink);background:#fff;transition:transform .08s,box-shadow .08s;display:inline-flex;align-items:center;justify-content:center;gap:.35rem}
 .nb-btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 0 var(--ink)}
 .nb-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 0 var(--ink)}
-.nb-in{width:100%;border:2px solid var(--ink);border-radius:8px;background:#fff;padding:.5rem .75rem;font-size:.875rem;font-weight:600;color:var(--ink);outline:none;transition:box-shadow .1s}
+.nb-in{
+  width:100%;
+  height:42px!important;
+  min-height:42px!important;
+  box-sizing:border-box!important;
+  border:2px solid var(--ink);
+  border-radius:8px;
+  background:#fff;
+  padding:0 .75rem;
+  font-size:.875rem;
+  font-weight:600;
+  color:var(--ink);
+  outline:none;
+  display:flex;
+  align-items:center;
+  line-height:normal;
+  transition:box-shadow .1s;
+}
 .nb-in:focus{box-shadow:4px 4px 0 0 var(--pink)}
 /* Format khusus titik password agar proporsional, rapi, dan tidak bertabrakan dengan tombol mata */
 input[type="password"]{
@@ -79,7 +96,7 @@ input[type="password"]{
 
 @media (hover:none){.nb-card:hover{transform:none;box-shadow:6px 6px 0 0 var(--ink)}}
 @media (max-width:640px){
-  .nb-in{font-size:16px;min-height:44px}
+  .nb-in{font-size:14px;height:42px!important;min-height:42px!important}
   .nb-btn{white-space:nowrap;min-height:44px}
   .ico-btn{width:44px;height:44px}
   .tbl-wrap{border:0!important;overflow:visible!important;border-radius:0!important}
@@ -247,10 +264,30 @@ function Pilih(p){
   },[]);
   const cur=p.opsi.find(o=>o.v===p.value)||p.opsi[0];
   return h('div',{ref:ref,className:'relative'},
-    h('button',{type:'button',onClick:()=>setOpen(!open),className:'nb-in flex items-center justify-between '+cur.c,style:{cursor:'pointer',boxShadow:open?'4px 4px 0 0 #111':'none'},'aria-haspopup':'listbox','aria-expanded':open},
-      h('span',null,cur.l),
-      h('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:3,strokeLinecap:'round',strokeLinejoin:'round',style:{transform:open?'rotate(180deg)':'none',transition:'transform .15s'},'aria-hidden':'true'},h('path',{d:'M6 9l6 6 6-6'}))),
-    open?h('div',{className:'pilih-list',role:'listbox'},p.opsi.map(o=>h('button',{key:o.v,type:'button',role:'option','aria-selected':o.v===p.value,className:'pilih-opt'+(o.v===p.value?' '+o.c:''),onClick:()=>{p.onChange(o.v);setOpen(false);}},o.l))):null);
+    h('button',{
+      type:'button',
+      onClick:()=>setOpen(!open),
+      className:'nb-in flex items-center justify-between text-xs font-bold cursor-pointer transition-all '+(cur.c||'bg-white'),
+      style:{boxShadow:open?'4px 4px 0 0 #111':'none'},
+      'aria-haspopup':'listbox',
+      'aria-expanded':open
+    },
+      h('span',{className:'truncate font-bold'},cur.l),
+      h('svg',{
+        width:15,height:15,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:3,strokeLinecap:'round',strokeLinejoin:'round',
+        style:{transform:open?'rotate(180deg)':'none',transition:'transform .15s',flexShrink:0,marginLeft:'6px'},
+        'aria-hidden':'true'
+      },h('path',{d:'M6 9l6 6 6-6'}))
+    ),
+    open?h('div',{className:'pilih-list z-50 animate-fadeIn',role:'listbox'},p.opsi.map(o=>h('button',{
+      key:o.v,
+      type:'button',
+      role:'option',
+      'aria-selected':o.v===p.value,
+      className:'pilih-opt text-xs py-2 px-3 font-bold border-b-2 border-black last:border-b-0 '+(o.v===p.value?'bg-canary font-black '+(o.c||''):'hover:bg-slate-50'),
+      onClick:()=>{p.onChange(o.v);setOpen(false);}
+    },o.l))):null
+  );
 }
 
 // Komponen Panel Terintegrasi (Menyatu dalam 1 Halaman Tanpa Pop-up Melayang / Tanpa Backdrop)
@@ -1059,6 +1096,446 @@ function WebSettingsModal({ settings, onClose, onSave, isAdmin, notify }){
   );
 }
 
+
+
+// Komponen SingleDatePicker (Kalender interaktif untuk input 1 tanggal, tema Neobrutalism)
+function SingleDatePicker({ value, onChange }){
+  const [open, setOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(() => {
+    const d = value ? new Date(value + 'T00:00:00') : new Date();
+    return d.getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = value ? new Date(value + 'T00:00:00') : new Date();
+    return d.getMonth();
+  });
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, []);
+
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  const prevMonth = (e) => {
+    if(e) e.stopPropagation();
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear(viewYear - 1);
+    } else {
+      setViewMonth(viewMonth - 1);
+    }
+  };
+
+  const nextMonth = (e) => {
+    if(e) e.stopPropagation();
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear(viewYear + 1);
+    } else {
+      setViewMonth(viewMonth + 1);
+    }
+  };
+
+  const toYMD = (year, month, day) => {
+    return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  };
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Minggu
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const handleSelect = (ymd) => {
+    onChange(ymd);
+    setOpen(false);
+  };
+
+  const setToday = (e) => {
+    if(e) e.stopPropagation();
+    const now = new Date();
+    const todayStr = toYMD(now.getFullYear(), now.getMonth(), now.getDate());
+    onChange(todayStr);
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+    setOpen(false);
+  };
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) {
+    cells.push(h('div', { key: 'empty-' + i, className: 'h-8' }));
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ymd = toYMD(viewYear, viewMonth, day);
+    const isSelected = value === ymd;
+
+    let cellClass = 'h-8 w-8 text-xs font-bold rounded-lg flex items-center justify-center cursor-pointer transition-colors ';
+    if (isSelected) {
+      cellClass += 'bg-black text-white shadow-[1px_1px_0_0_#ffd23f] font-black z-10';
+    } else {
+      cellClass += 'hover:bg-canary text-slate-800';
+    }
+
+    cells.push(h('div', {
+      key: ymd,
+      onClick: () => handleSelect(ymd),
+      className: cellClass
+    }, day));
+  }
+
+  return h('div', { ref: ref, className: 'relative' },
+    // Kotak Input Pilihan Tanggal
+    h('div', {
+      onClick: () => setOpen(!open),
+      className: 'nb-in flex items-center justify-between cursor-pointer select-none bg-white',
+      style: { boxShadow: open ? '3px 3px 0 0 #ff3d81' : 'none' }
+    },
+      h('div', { className: 'flex items-center gap-2 truncate' },
+        h('span', { className: 'text-sm' }, '📅'),
+        h('span', { className: 'text-xs font-bold text-slate-900 truncate' }, value ? tgl(value) : 'Pilih Tanggal')
+      ),
+      h('span', {
+        className: 'text-[9px] text-slate-500 transition-transform duration-150',
+        style: { transform: open ? 'rotate(180deg)' : 'none' }
+      }, '▼')
+    ),
+
+    // Popover Kalender Neobrutalism
+    open ? h('div', {
+      className: 'absolute left-0 top-full mt-2 z-50 bg-white border-2 border-black rounded-xl p-3 shadow-[6px_6px_0_0_#111] w-[285px] sm:w-[315px] space-y-2.5 animate-fadeIn'
+    },
+      // Header Kalender
+      h('div', { className: 'flex items-center justify-between pb-1 border-b border-slate-200' },
+        h('button', {
+          type: 'button',
+          onClick: prevMonth,
+          className: 'ico-btn text-xs w-7 h-7 flex items-center justify-center shadow-[1px_1px_0_0_#111]'
+        }, '◀'),
+        h('span', { className: 'font-extrabold text-xs text-slate-900' }, monthNames[viewMonth] + ' ' + viewYear),
+        h('button', {
+          type: 'button',
+          onClick: nextMonth,
+          className: 'ico-btn text-xs w-7 h-7 flex items-center justify-center shadow-[1px_1px_0_0_#111]'
+        }, '▶')
+      ),
+
+      // Header Nama Hari
+      h('div', { className: 'grid grid-cols-7 text-center text-[10px] font-black text-slate-500 uppercase' },
+        ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d, i) => h('div', { key: d, className: i === 0 ? 'text-coral' : '' }, d))
+      ),
+
+      // Grid Sel Tanggal
+      h('div', { className: 'grid grid-cols-7 gap-1 text-center select-none' }, cells),
+
+      // Tombol Hari Ini
+      h('div', { className: 'pt-1.5 border-t border-slate-200 flex justify-center' },
+        h('button', {
+          type: 'button',
+          onClick: setToday,
+          className: 'tag canary text-[10px] py-1 px-3 font-bold cursor-pointer'
+        }, 'Hari Ini')
+      )
+    ) : null
+  );
+}
+
+// Komponen DateRangePicker (Satu inputan interaktif, drag & klik rentang tanggal, kalender popover Neobrutalism)
+function DateRangePicker({ dari, sampai, onChange }){
+  const [open, setOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(() => {
+    const d = dari ? new Date(dari + 'T00:00:00') : new Date();
+    return d.getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = dari ? new Date(dari + 'T00:00:00') : new Date();
+    return d.getMonth();
+  });
+  const [dragStart, setDragStart] = useState(null);
+  const [hoverDate, setHoverDate] = useState(null);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setIsMouseDown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, []);
+
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  const prevMonth = (e) => {
+    if(e) e.stopPropagation();
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear(viewYear - 1);
+    } else {
+      setViewMonth(viewMonth - 1);
+    }
+  };
+
+  const nextMonth = (e) => {
+    if(e) e.stopPropagation();
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear(viewYear + 1);
+    } else {
+      setViewMonth(viewMonth + 1);
+    }
+  };
+
+  const toYMD = (year, month, day) => {
+    return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  };
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Minggu
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const handleDateClick = (ymd) => {
+    if (!dragStart) {
+      setDragStart(ymd);
+      setHoverDate(ymd);
+    } else {
+      let d1 = dragStart;
+      let d2 = ymd;
+      if (d1 > d2) {
+        const tmp = d1;
+        d1 = d2;
+        d2 = tmp;
+      }
+      onChange({ dari: d1, sampai: d2 });
+      setDragStart(null);
+      setHoverDate(null);
+      setOpen(false);
+    }
+  };
+
+  const handleMouseDown = (ymd) => {
+    setIsMouseDown(true);
+    setDragStart(ymd);
+    setHoverDate(ymd);
+  };
+
+  const handleMouseEnter = (ymd) => {
+    if (isMouseDown || dragStart) {
+      setHoverDate(ymd);
+    }
+  };
+
+  const handleMouseUp = (ymd) => {
+    if (isMouseDown && dragStart && dragStart !== ymd) {
+      let d1 = dragStart;
+      let d2 = ymd;
+      if (d1 > d2) {
+        const tmp = d1;
+        d1 = d2;
+        d2 = tmp;
+      }
+      onChange({ dari: d1, sampai: d2 });
+      setDragStart(null);
+      setHoverDate(null);
+      setOpen(false);
+    }
+    setIsMouseDown(false);
+  };
+
+  // Sentuhan geser (Touch Drag) di ponsel
+  const handleTouchMove = (e) => {
+    if (!isMouseDown && !dragStart) return;
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (target && target.dataset && target.dataset.ymd) {
+      setHoverDate(target.dataset.ymd);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragStart && hoverDate) {
+      let d1 = dragStart;
+      let d2 = hoverDate;
+      if (d1 > d2) {
+        const tmp = d1;
+        d1 = d2;
+        d2 = tmp;
+      }
+      onChange({ dari: d1, sampai: d2 });
+      setDragStart(null);
+      setHoverDate(null);
+      setOpen(false);
+    }
+    setIsMouseDown(false);
+  };
+
+  const applyPreset = (preset, e) => {
+    if(e) e.stopPropagation();
+    const now = new Date();
+    const todayStr = toYMD(now.getFullYear(), now.getMonth(), now.getDate());
+    if (preset === 'today') {
+      onChange({ dari: todayStr, sampai: todayStr });
+    } else if (preset === '7d') {
+      const past = new Date(now.getTime() - 6 * 86400000);
+      onChange({ dari: toYMD(past.getFullYear(), past.getMonth(), past.getDate()), sampai: todayStr });
+    } else if (preset === '30d') {
+      const past = new Date(now.getTime() - 29 * 86400000);
+      onChange({ dari: toYMD(past.getFullYear(), past.getMonth(), past.getDate()), sampai: todayStr });
+    } else if (preset === 'month') {
+      const first = toYMD(now.getFullYear(), now.getMonth(), 1);
+      const last = toYMD(now.getFullYear(), now.getMonth() + 1, 0);
+      onChange({ dari: first, sampai: last });
+    } else if (preset === 'all') {
+      onChange({ dari: '', sampai: '' });
+    }
+    setDragStart(null);
+    setHoverDate(null);
+    setOpen(false);
+  };
+
+  const clearFilter = (e) => {
+    e.stopPropagation();
+    onChange({ dari: '', sampai: '' });
+    setDragStart(null);
+    setHoverDate(null);
+  };
+
+  // Hitung rentang seleksi aktif
+  let activeStart = dari;
+  let activeEnd = sampai;
+  if (dragStart && hoverDate) {
+    activeStart = dragStart < hoverDate ? dragStart : hoverDate;
+    activeEnd = dragStart > hoverDate ? dragStart : hoverDate;
+  }
+
+  const displayText = () => {
+    if (dari && sampai) {
+      return dari === sampai ? tgl(dari) : (tgl(dari) + ' – ' + tgl(sampai));
+    }
+    if (dari) return 'Mulai ' + tgl(dari);
+    if (sampai) return 'Sampai ' + tgl(sampai);
+    return 'Semua Rentang Tanggal';
+  };
+
+  // Render sel-sel tanggal kalender
+  const cells = [];
+  // Hari kosong awal bulan
+  for (let i = 0; i < firstDay; i++) {
+    cells.push(h('div', { key: 'empty-' + i, className: 'h-8' }));
+  }
+  // Hari dalam bulan
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ymd = toYMD(viewYear, viewMonth, day);
+    const isStart = activeStart === ymd;
+    const isEnd = activeEnd === ymd;
+    const inRange = activeStart && activeEnd && ymd >= activeStart && ymd <= activeEnd;
+
+    let cellClass = 'h-8 w-8 text-xs font-bold rounded-lg flex items-center justify-center cursor-pointer transition-colors relative ';
+    if (isStart || isEnd) {
+      cellClass += 'bg-black text-white shadow-[1px_1px_0_0_#ffd23f] z-10';
+    } else if (inRange) {
+      cellClass += 'bg-canary text-black';
+    } else {
+      cellClass += 'hover:bg-slate-100 text-slate-800';
+    }
+
+    cells.push(h('div', {
+      key: ymd,
+      'data-ymd': ymd,
+      onClick: () => handleDateClick(ymd),
+      onMouseDown: () => handleMouseDown(ymd),
+      onMouseEnter: () => handleMouseEnter(ymd),
+      onMouseUp: () => handleMouseUp(ymd),
+      className: cellClass
+    }, day));
+  }
+
+  return h('div', { ref: ref, className: 'relative' },
+    // Kotak Input Tunggal
+    h('div', {
+      onClick: () => setOpen(!open),
+      className: 'nb-in flex items-center justify-between cursor-pointer select-none bg-white',
+      style: { boxShadow: open ? '3px 3px 0 0 #ff3d81' : 'none' }
+    },
+      h('div', { className: 'flex items-center gap-2 truncate' },
+        h('span', { className: 'text-sm' }, '📅'),
+        h('span', { className: 'text-xs font-bold text-slate-900 truncate' }, displayText())
+      ),
+      h('div', { className: 'flex items-center gap-1.5 flex-shrink-0' },
+        (dari || sampai) ? h('button', {
+          type: 'button',
+          onClick: clearFilter,
+          className: 'w-5 h-5 rounded-full bg-slate-200 hover:bg-coral hover:text-white flex items-center justify-center text-[10px] font-black border-0 cursor-pointer',
+          title: 'Hapus filter tanggal'
+        }, '✕') : null,
+        h('span', { className: 'text-[9px] text-slate-500' }, open ? '▲' : '▼')
+      )
+    ),
+
+    // Popover Kalender Interaktif
+    open ? h('div', {
+      className: 'absolute left-0 top-full mt-2 z-50 bg-white border-2 border-black rounded-xl p-3 shadow-[6px_6px_0_0_#111] w-[295px] sm:w-[325px] space-y-2.5 animate-fadeIn',
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd
+    },
+      // Header Kalender (Navigasi Bulan & Tahun)
+      h('div', { className: 'flex items-center justify-between pb-1 border-b border-slate-200' },
+        h('button', {
+          type: 'button',
+          onClick: prevMonth,
+          className: 'ico-btn text-xs w-7 h-7 flex items-center justify-center shadow-[1px_1px_0_0_#111]'
+        }, '◀'),
+        h('span', { className: 'font-extrabold text-xs text-slate-900' }, monthNames[viewMonth] + ' ' + viewYear),
+        h('button', {
+          type: 'button',
+          onClick: nextMonth,
+          className: 'ico-btn text-xs w-7 h-7 flex items-center justify-center shadow-[1px_1px_0_0_#111]'
+        }, '▶')
+      ),
+
+      // Header Nama Hari (Min, Sen, Sel, ...)
+      h('div', { className: 'grid grid-cols-7 text-center text-[10px] font-black text-slate-500 uppercase' },
+        ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d, i) => h('div', { key: d, className: i === 0 ? 'text-coral' : '' }, d))
+      ),
+
+      // Grid Sel Tanggal
+      h('div', { className: 'grid grid-cols-7 gap-1 text-center select-none' }, cells),
+
+      // Petunjuk Interaktif Drag / Klik
+      h('p', { className: 'text-[10px] text-slate-500 text-center font-medium italic' },
+        dragStart ? 'Pilih atau geser ke tanggal akhir' : 'Klik/geser tanggal mulai hingga tanggal selesai'
+      ),
+
+      // Tombol Pintas Cepat (Hari Ini, 7 Hari, Bulan Ini, Semua)
+      h('div', { className: 'pt-1.5 border-t border-slate-200 flex flex-wrap gap-1 justify-center' },
+        h('button', { type: 'button', onClick: (e) => applyPreset('today', e), className: 'tag canary text-[10px] py-0.5 px-2 font-bold cursor-pointer' }, 'Hari Ini'),
+        h('button', { type: 'button', onClick: (e) => applyPreset('7d', e), className: 'tag mint text-[10px] py-0.5 px-2 font-bold cursor-pointer' }, '7 Hari Terakhir'),
+        h('button', { type: 'button', onClick: (e) => applyPreset('month', e), className: 'tag lilac text-[10px] py-0.5 px-2 font-bold cursor-pointer' }, 'Bulan Ini'),
+        h('button', { type: 'button', onClick: (e) => applyPreset('all', e), className: 'tag text-[10px] py-0.5 px-2 font-bold cursor-pointer bg-slate-100' }, 'Semua Tanggal')
+      )
+    ) : null
+  );
+}
+
 function App(){
   const [currentUser, setCurrentUser]=useState(null);
   const [authChecked, setAuthChecked]=useState(false);
@@ -1086,7 +1563,7 @@ function App(){
   const [f,setF]=useState(empty());
   const [editId,setEditId]=useState(null);
   const [err,setErr]=useState({});
-  const [flt,setFlt]=useState({dari:'',sampai:'',q:''});
+  const [flt,setFlt]=useState({dari:'',sampai:'',q:'',jenis:'ALL'});
   const [modal,setModal]=useState(null);
   const [userModalOpen, setUserModalOpen]=useState(false);
   const [impTeks,setImpTeks]=useState('');
@@ -1104,6 +1581,20 @@ function App(){
     setSheetModalOpen(false);
     setSettingsModalOpen(false);
     setModal(null);
+  };
+
+  // Fungsi scroll otomatis ke form tambah transaksi saat FAB (+) diklik
+  const scrollToForm=()=>{
+    closeAllPanels();
+    if(editId) cancel();
+    const el = document.getElementById('form-transaksi');
+    if(el){
+      el.scrollIntoView({ behavior:'smooth', block:'start' });
+      const inp = el.querySelector('input[placeholder*="Penjualan"]');
+      if(inp){
+        setTimeout(() => inp.focus(), 320);
+      }
+    }
   };
 
   const openFeature=(featType, data=null)=>{
@@ -1323,6 +1814,7 @@ function App(){
 
   const shown=rows.filter(t=>
     (!flt.dari||t.tanggal>=flt.dari)&&(!flt.sampai||t.tanggal<=flt.sampai)&&
+    (!flt.jenis||flt.jenis==='ALL'||t.jenis===flt.jenis)&&
     (!flt.q||t.ket.toLowerCase().includes(flt.q.toLowerCase())));
 
   const totD=txs.filter(t=>t.jenis==='D').reduce((a,t)=>a+t.jumlah,0);
@@ -1514,8 +2006,8 @@ function App(){
     }
   };
 
-  const field=(label,el,er)=>h('div',null,
-    h('label',{className:'block text-xs font-bold uppercase mb-1'},label),el,
+  const field=(label,el,er)=>h('div',{className:'flex flex-col justify-start'},
+    h('label',{className:'block text-[11px] font-black uppercase mb-1.5 text-slate-700'},label),el,
     er?h('p',{className:'text-xs font-bold mt-1'},h('span',{className:'tag coral'},er)):null);
   const stat=(label,val,bg)=>h('div',{className:'nb-card p-4 '+bg},
     h('p',{className:'text-xs font-bold uppercase'},label),
@@ -1821,10 +2313,10 @@ function App(){
       stat('Saldo (Debet - Kredit)',rp(saldo),saldo<0?'pink':'canary')),
 
     // Form Tambah/Edit Transaksi
-    h('div',{className:'nb-card p-4 sm:p-5 no-print'},
+    h('div',{id:'form-transaksi', className:'nb-card p-4 sm:p-5 no-print scroll-mt-6'},
       h('h2',{className:'text-lg mb-3'},editId?'Edit Transaksi':'Tambah Transaksi'),
       h('div',{className:'grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'},
-        field('Tanggal',h('input',{type:'date',className:'nb-in',value:f.tanggal,onChange:set('tanggal')}),err.tanggal),
+        field('Tanggal',h(SingleDatePicker,{value:f.tanggal,onChange:v=>setF(Object.assign({},f,{tanggal:v}))}),err.tanggal),
         field('Jenis',h(Pilih,{value:f.jenis,onChange:v=>setF(Object.assign({},f,{jenis:v})),opsi:[{v:'D',l:'Debet (Pemasukan)',c:'mint'},{v:'K',l:'Kredit (Pengeluaran)',c:'coral'}]})),
         field('Keterangan',h('input',{type:'text',className:'nb-in',placeholder:'Contoh: Penjualan harian, Beli stok',value:f.ket,onChange:set('ket')}),err.ket),
         field('Jumlah (Rp)',h('input',{type:'text',inputMode:'numeric',className:'nb-in mono',placeholder:'0',
@@ -1836,10 +2328,48 @@ function App(){
 
     // Filter & Table
     h('div',{className:'nb-card p-4 sm:p-5'},
-      h('div',{className:'grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 no-print'},
-        field('Dari tanggal',h('input',{type:'date',className:'nb-in',value:flt.dari,onChange:setFl('dari')})),
-        field('Sampai tanggal',h('input',{type:'date',className:'nb-in',value:flt.sampai,onChange:setFl('sampai')})),
-        field('Cari keterangan',h('input',{type:'text',className:'nb-in',placeholder:'Cari...',value:flt.q,onChange:setFl('q')}))),
+      // Filter Rapi Simetris 3 Kolom (Combobox Jenis, Rentang Tanggal & Pencarian)
+      h('div',{className:'grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4 no-print'},
+        // 1. Combobox Filter Jenis Transaksi (Mengikuti Tema Khas Neobrutalism)
+        h('div',null,
+          h('label',{className:'block text-[10px] font-black uppercase mb-1 text-slate-700'},'Jenis Transaksi'),
+          h(Pilih,{
+            value: flt.jenis || 'ALL',
+            onChange: v => setFlt(Object.assign({}, flt, { jenis: v })),
+            opsi: [
+              { v: 'ALL', l: 'Semua Transaksi (' + txs.length + ')', c: 'bg-white' },
+              { v: 'D', l: '🟢 Pemasukan (' + txs.filter(t=>t.jenis==='D').length + ')', c: 'mint' },
+              { v: 'K', l: '🔴 Pengeluaran (' + txs.filter(t=>t.jenis==='K').length + ')', c: 'coral' }
+            ]
+          })
+        ),
+
+        // 2. Satu Inputan Rentang Tanggal (Drag / Klik)
+        h('div',null,
+          h('label',{className:'block text-[10px] font-black uppercase mb-1 text-slate-700'},'Rentang Tanggal (Drag / Pilih)'),
+          h(DateRangePicker,{
+            dari: flt.dari,
+            sampai: flt.sampai,
+            onChange: (range) => setFlt(Object.assign({}, flt, range))
+          })
+        ),
+
+        // 3. Kotak Cari Keterangan
+        h('div',null,
+          h('label',{className:'block text-[10px] font-black uppercase mb-1 text-slate-700'},'Cari Keterangan'),
+          h('div',{className:'relative flex items-center'},
+            h('input',{
+              type:'text',
+              className:'nb-in text-xs',
+              style:{paddingLeft:'2.25rem'},
+              placeholder:'Ketik kata kunci...',
+              value:flt.q,
+              onChange:setFl('q')
+            }),
+            h('span',{className:'absolute left-2.5 text-xs text-slate-400 select-none'},'🔍')
+          )
+        )
+      ),
       h('div',{className:'overflow-x-auto tbl-wrap',style:{border:'2px solid #111',borderRadius:'10px'}},
         h('table',{className:'nb-table w-full text-sm'},
           h('thead',null,h('tr',{className:'text-left'},
@@ -1857,6 +2387,29 @@ function App(){
                 h('button',{type:'button',onClick:()=>edit(t),className:'ico-btn canary',title:'Edit','aria-label':'Edit'},h(IcoEdit)),
                 h('button',{type:'button',onClick:()=>openFeature('del',{id:t.id}),className:'ico-btn coral',title:'Hapus','aria-label':'Hapus'},h(IcoTrash)))))))))),
 
+    // Tombol + Melayang di Pojok Kanan Bawah (Floating Action Button)
+    h('button',{
+      type:'button',
+      onClick:scrollToForm,
+      className:'fixed z-40 flex items-center justify-center font-black cursor-pointer shadow-[4px_4px_0_0_#111] hover:scale-105 active:scale-95 transition-transform no-print',
+      style:{
+        right:'16px',
+        bottom:'calc(16px + env(safe-area-inset-bottom, 0px))',
+        width:'54px',
+        height:'54px',
+        borderRadius:'16px',
+        border:'2.5px solid #111',
+        backgroundColor:'var(--mint)',
+        color:'#111'
+      },
+      title:'Tambah Transaksi Baru (+)',
+      'aria-label':'Tambah Transaksi Baru'
+    },
+      h('svg',{width:26,height:26,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:3.2,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':'true'},
+        h('line',{x1:12,y1:5,x2:12,y2:19}),
+        h('line',{x1:5,y1:12,x2:19,y2:12})
+      )
+    )
   );
 }
 ReactDOM.createRoot(document.getElementById('root')).render(h(App));
