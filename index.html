@@ -144,6 +144,13 @@ window.addEventListener('error', function(e){
   }
 });
 
+
+var safeStorage = {
+  getItem: function(k) { try { return localStorage.getItem(k); } catch(e) { return null; } },
+  setItem: function(k, v) { try { localStorage.setItem(k, v); } catch(e) {} },
+  removeItem: function(k) { try { localStorage.removeItem(k); } catch(e) {} }
+};
+
 const {useState,useEffect,useMemo,useRef}=React;
 const h=React.createElement;
 
@@ -162,6 +169,8 @@ let fbDb = null;
 let txsRef = null;
 let usersRef = null;
 let configRef = null;
+let kegiatanListRef = null;
+let kegiatanDataRef = null;
 
 try {
   if (window.firebase && firebase.initializeApp) {
@@ -170,6 +179,8 @@ try {
     txsRef = fbDb.ref('buku_kas/transactions');
     usersRef = fbDb.ref('buku_kas/users');
     configRef = fbDb.ref('buku_kas/config');
+    kegiatanListRef = fbDb.ref('buku_kas/kegiatan_list');
+    kegiatanDataRef = fbDb.ref('buku_kas/kegiatan_data');
   }
 } catch (e) {
   console.warn('Firebase init error:', e);
@@ -1536,9 +1547,233 @@ function DateRangePicker({ dari, sampai, onChange }){
   );
 }
 
+
+// Komponen Panel Kelola Kegiatan Kas (Multi-Buku Kas / Multi-Workspace)
+function KegiatanManagementPanel({ kegiatanList, activeKegiatanId, onSwitch, onAdd, onRename, onDelete, onClose, notify }) {
+  const [newNama, setNewNama] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editNama, setEditNama] = useState('');
+  const [err, setErr] = useState('');
+
+  const handleAdd = (e) => {
+    if (e) e.preventDefault();
+    setErr('');
+    const n = newNama.trim();
+    if (!n) {
+      setErr('Nama kegiatan tidak boleh kosong.');
+      return;
+    }
+    if (kegiatanList.some(k => k.nama.toLowerCase() === n.toLowerCase())) {
+      setErr('Nama kegiatan "' + n + '" sudah terdaftar.');
+      return;
+    }
+    onAdd(n);
+    setNewNama('');
+  };
+
+  const handleSaveRename = (id) => {
+    setErr('');
+    const n = editNama.trim();
+    if (!n) {
+      setErr('Nama kegiatan tidak boleh kosong.');
+      return;
+    }
+    if (kegiatanList.some(k => k.id !== id && k.nama.toLowerCase() === n.toLowerCase())) {
+      setErr('Nama kegiatan "' + n + '" sudah digunakan kegiatan lain.');
+      return;
+    }
+    onRename(id, n);
+    setEditingId(null);
+    setEditNama('');
+  };
+
+  return h('div', { className: 'nb-card p-3 sm:p-4 border-2 border-black bg-white shadow-[4px_4px_0_0_#111] no-print space-y-3 my-2.5 animate-fadeIn' },
+    // Header Panel Bersih
+    h('div', { className: 'flex justify-between items-center pb-2 border-b-2 border-black' },
+      h('div', { className: 'flex items-center gap-2 min-w-0' },
+        h('h3', { className: 'text-sm sm:text-base font-extrabold tracking-tight truncate' }, '📁 Kelola Daftar Kegiatan Kas'),
+        h('span', { className: 'tag canary text-[10px] py-0 px-2 font-bold' }, kegiatanList.length + ' Kegiatan')
+      ),
+      h('button', {
+        type: 'button',
+        onClick: onClose,
+        className: 'w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 border-black bg-white hover:bg-coral hover:text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-[2px_2px_0_0_#111] cursor-pointer flex-shrink-0 transition-all',
+        title: 'Tutup Panel'
+      }, '✕')
+    ),
+
+    err ? h('div', { className: 'p-2.5 rounded-lg border-2 border-black text-xs font-bold shadow-[2px_2px_0_0_#111]', style: { backgroundColor: '#ff6b5e', color: '#111111' } },
+      '⚠️ ' + err
+    ) : null,
+
+    // Form Tambah Kegiatan Baru
+    h('form', { onSubmit: handleAdd, className: 'p-3 rounded-xl border-2 border-black bg-cream shadow-[2px_2px_0_0_#111] space-y-2' },
+      h('div', { className: 'flex items-center justify-between pb-1 border-b border-black/10' },
+        h('span', { className: 'text-[11px] font-black uppercase tracking-wider text-slate-800' }, '+ Buat Kegiatan / Buku Kas Baru'),
+        h('span', { className: 'text-[10px] text-slate-500 font-bold' }, 'Pemisahan Pembukuan')
+      ),
+      h('div', { className: 'flex gap-2 items-center' },
+        h('input', {
+          type: 'text',
+          value: newNama,
+          placeholder: 'Contoh: Kegiatan 2, Bazar Ramadhan, Renovasi...',
+          onChange: e => setNewNama(e.target.value),
+          className: 'nb-in text-xs flex-1 h-9 min-h-0'
+        }),
+        h('button', {
+          type: 'submit',
+          className: 'nb-btn mint text-xs py-1.5 px-4 font-bold shadow-[2px_2px_0_0_#111] h-9 min-h-0 whitespace-nowrap'
+        }, '+ Tambahkan')
+      )
+    ),
+
+    // Daftar Kegiatan yang Tersimpan
+    h('div', { className: 'space-y-1.5 pt-1' },
+      h('div', { className: 'text-[11px] font-extrabold uppercase tracking-wider text-slate-800 mb-1' }, 'Daftar Semua Kegiatan:'),
+      kegiatanList.map(k => {
+        const isCurrent = k.id === activeKegiatanId;
+        const isEditing = editingId === k.id;
+
+        return h('div', {
+          key: k.id,
+          className: `p-2.5 rounded-lg border-2 border-black bg-white shadow-[2px_2px_0_0_#111] space-y-2 ${isCurrent ? 'ring-2 ring-black' : ''}`
+        },
+          h('div', { className: 'flex items-center justify-between gap-2' },
+            isEditing ? h('div', { className: 'flex gap-2 items-center flex-1' },
+              h('input', {
+                type: 'text',
+                value: editNama,
+                onChange: e => setEditNama(e.target.value),
+                className: 'nb-in text-xs py-1 px-2 h-8 min-h-0 flex-1'
+              }),
+              h('button', {
+                type: 'button',
+                onClick: () => handleSaveRename(k.id),
+                className: 'nb-btn mint text-[10px] px-2.5 py-1 font-bold h-8 min-h-0'
+              }, 'Simpan'),
+              h('button', {
+                type: 'button',
+                onClick: () => { setEditingId(null); setEditNama(''); },
+                className: 'nb-btn text-[10px] px-2 py-1 h-8 min-h-0'
+              }, 'Batal')
+            ) : h('div', { className: 'flex items-center gap-2 min-w-0 flex-1' },
+              h('span', { className: 'text-sm' }, isCurrent ? '📌' : '📁'),
+              h('span', { className: 'font-extrabold text-xs text-slate-900 truncate' }, k.nama),
+              isCurrent ? h('span', { className: 'tag mint text-[9px] py-0 px-1.5 font-bold' }, 'Sedang Aktif') : null
+            ),
+
+            !isEditing ? h('div', { className: 'flex items-center gap-1.5 flex-shrink-0' },
+              !isCurrent ? h('button', {
+                type: 'button',
+                onClick: () => onSwitch(k.id),
+                className: 'nb-btn canary text-[10px] px-2.5 py-1 font-bold h-7 min-h-0'
+              }, 'Buka') : null,
+              h('button', {
+                type: 'button',
+                onClick: () => { setEditingId(k.id); setEditNama(k.nama); },
+                className: 'ico-btn canary text-xs w-7 h-7 min-h-0',
+                title: 'Ganti Nama Kegiatan'
+              }, '✏️'),
+              kegiatanList.length > 1 ? h('button', {
+                type: 'button',
+                onClick: () => onDelete(k.id, k.nama),
+                className: 'ico-btn coral text-xs w-7 h-7 min-h-0',
+                title: 'Hapus Kegiatan'
+              }, '🗑️') : null
+            ) : null
+          )
+        );
+      })
+    )
+  );
+}
+
+// Pelindung Galat React (ErrorBoundary)
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error: error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', {
+        style: {
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          backgroundColor: 'var(--cream, #fdf9f0)'
+        }
+      },
+        React.createElement('div', {
+          className: 'nb-card',
+          style: {
+            background: '#fff',
+            border: '2px solid #111',
+            borderRadius: '16px',
+            boxShadow: '6px 6px 0 0 #111',
+            padding: '24px',
+            maxWidth: '420px',
+            width: '100%',
+            textAlign: 'center'
+          }
+        },
+          React.createElement('span', {
+            className: 'tag coral',
+            style: { display: 'inline-block', marginBottom: '12px' }
+          }, 'Terjadi Kendala Tampilan'),
+          React.createElement('h3', { style: { margin: '8px 0', fontSize: '18px', fontWeight: 800 } }, 'Memulihkan Aplikasi'),
+          React.createElement('p', { style: { fontSize: '13px', color: '#555', marginBottom: '16px' } },
+            (this.state.error && this.state.error.message) ? this.state.error.message : 'Silakan klik tombol di bawah untuk memuat ulang data.'
+          ),
+          React.createElement('button', {
+            onClick: () => {
+              this.setState({ hasError: false, error: null });
+              try { safeStorage.removeItem(SESSION_KEY); } catch(e){}
+              window.location.reload();
+            },
+            className: 'nb-btn mint',
+            style: { cursor: 'pointer', padding: '10px 20px', fontWeight: 800 }
+          }, 'Muat Ulang Halaman')
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App(){
-  const [currentUser, setCurrentUser]=useState(null);
-  const [authChecked, setAuthChecked]=useState(false);
+  const [currentUser, setCurrentUser]=useState(() => {
+    try {
+      const sess = safeStorage.getItem(SESSION_KEY);
+      if(sess){
+        const parsed = JSON.parse(sess);
+        if(parsed && parsed.username) return parsed;
+      }
+    }catch(e){}
+    return defaultUsers[0];
+  });
+  const [authChecked, setAuthChecked]=useState(true);
+
+  // Pengaturan Multi-Kegiatan Kas (Multi-Buku Kas / Multi-Workspace)
+  const [kegiatanList, setKegiatanList]=useState([
+    { id: 'k1', nama: 'Kegiatan 1', createdAt: Date.now() }
+  ]);
+  const [activeKegiatanId, setActiveKegiatanId]=useState('k1');
+  const [kegiatanModalOpen, setKegiatanModalOpen]=useState(false);
+  const [kegiatanMenuOpen, setKegiatanMenuOpen]=useState(false);
+  const kegiatanMenuRef=useRef(null);
+
+  const currentKegiatan = useMemo(() => {
+    return kegiatanList.find(k => k.id === activeKegiatanId) || kegiatanList[0] || { id: 'k1', nama: 'Kegiatan 1' };
+  }, [kegiatanList, activeKegiatanId]);
 
   // Pengaturan Tautan Google Spreadsheet
   const [sheetConfig, setSheetConfig]=useState(null);
@@ -1580,6 +1815,7 @@ function App(){
     setUserModalOpen(false);
     setSheetModalOpen(false);
     setSettingsModalOpen(false);
+    setKegiatanModalOpen(false);
     setModal(null);
   };
 
@@ -1611,6 +1847,10 @@ function App(){
       const next = !settingsModalOpen;
       closeAllPanels();
       setSettingsModalOpen(next);
+    } else if(featType === 'kegiatan'){
+      const next = !kegiatanModalOpen;
+      closeAllPanels();
+      setKegiatanModalOpen(next);
     } else {
       // Untuk modal pdf, impor, csv, reset, del
       const isAlreadyOpen = modal && modal.t === featType;
@@ -1624,12 +1864,47 @@ function App(){
   // 1. Cek sesi login saat halaman dimuat
   useEffect(()=>{
     try{
-      const sess = localStorage.getItem(SESSION_KEY);
+      const sess = safeStorage.getItem(SESSION_KEY);
       if(sess){
         setCurrentUser(JSON.parse(sess));
+      } else {
+        setCurrentUser(defaultUsers[0]);
       }
-    }catch(e){}
+    }catch(e){
+      setCurrentUser(defaultUsers[0]);
+    }
     setAuthChecked(true);
+  },[]);
+
+  // 1.0 Sinkronisasi Daftar Kegiatan Kas dari Firebase (dengan Auto-Migrasi Data Lama)
+  useEffect(()=>{
+    if(kegiatanListRef){
+      kegiatanListRef.on('value', snapshot => {
+        const val = snapshot.val();
+        if(val && Array.isArray(val) && val.length > 0){
+          setKegiatanList(val);
+          setActiveKegiatanId(currId => {
+            if(val.some(k => k.id === currId)) return currId;
+            return val[0].id;
+          });
+        } else if(!val) {
+          // Buat kegiatan bawaan "Kegiatan 1" dan migrasikan transaksi lama jika ada
+          const defaultList = [{ id: 'k1', nama: 'Kegiatan 1', createdAt: Date.now() }];
+          if(txsRef){
+            txsRef.once('value').then(txSnap => {
+              const oldTxs = txSnap.val();
+              if(oldTxs && Array.isArray(oldTxs) && oldTxs.length > 0){
+                if(kegiatanDataRef){
+                  kegiatanDataRef.child('k1').child('transactions').set(oldTxs);
+                }
+              }
+            });
+          }
+          kegiatanListRef.set(defaultList);
+          setKegiatanList(defaultList);
+        }
+      });
+    }
   },[]);
 
   // 1.1 Sinkronisasi Pengaturan Google Spreadsheet & Web Settings dari Firebase
@@ -1672,11 +1947,14 @@ function App(){
     }
   };
 
-  // Tutup dropdown menu alat data jika klik di luar
+  // Tutup dropdown menu alat data & menu kegiatan jika klik di luar
   useEffect(()=>{
     const handleOutside = (e) => {
       if(toolsMenuRef.current && !toolsMenuRef.current.contains(e.target)){
         setToolsMenuOpen(false);
+      }
+      if(kegiatanMenuRef.current && !kegiatanMenuRef.current.contains(e.target)){
+        setKegiatanMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutside);
@@ -1689,7 +1967,7 @@ function App(){
 
   const [isCloudOnline, setIsCloudOnline]=useState(false);
 
-  // 2. Sinkronisasi Data Transaksi Murni dengan Firebase Realtime Database (100% Cloud)
+  // 2. Sinkronisasi Data Transaksi Kegiatan Terpilih dengan Firebase Realtime Database (100% Cloud)
   useEffect(()=>{
     if(!currentUser) {
       setLoading(false);
@@ -1697,21 +1975,21 @@ function App(){
     }
     setLoading(true);
 
-    // Batas waktu pengaman: maksimal 2 detik agar tidak pernah macet di layar loading
     const timer = setTimeout(() => {
       setLoading(false);
     }, 2000);
 
-    // Pemantau koneksi real-time resmi Firebase (.info/connected)
     if(fbDb){
       fbDb.ref('.info/connected').on('value', snap => {
         setIsCloudOnline(Boolean(snap.val()));
       });
     }
 
-    // Hubungkan listener Firebase real-time
-    if(txsRef){
-      txsRef.on('value', snapshot => {
+    // Arahkan ke cabang data transaksi kegiatan aktif
+    const currentTxsRef = (kegiatanDataRef && activeKegiatanId) ? kegiatanDataRef.child(activeKegiatanId).child('transactions') : txsRef;
+
+    if(currentTxsRef){
+      currentTxsRef.on('value', snapshot => {
         clearTimeout(timer);
         const val = snapshot.val();
         setIsCloudOnline(true);
@@ -1719,7 +1997,7 @@ function App(){
         if(val && Array.isArray(val)){
           setTxs(val);
         } else if(!val) {
-          txsRef.set([]);
+          currentTxsRef.set([]);
           setTxs([]);
         }
       }, err => {
@@ -1727,15 +2005,17 @@ function App(){
         console.warn('Firebase sync error:', err);
         setIsCloudOnline(false);
         setLoading(false);
-        notify('Gagal sinkron dari Firebase: ' + (err.message || 'Periksa aturan Rules database'), 'error');
       });
     } else {
       clearTimeout(timer);
       setLoading(false);
     }
 
-    return () => clearTimeout(timer);
-  },[currentUser]);
+    return () => {
+      clearTimeout(timer);
+      if(currentTxsRef) currentTxsRef.off('value');
+    };
+  },[currentUser, activeKegiatanId]);
 
   // Fungsi Pengiriman Data Real-time ke Google Spreadsheet via Apps Script
   const syncToGoogleSheets=(action, itemsList, targetScriptUrl)=>{
@@ -1777,10 +2057,47 @@ function App(){
     }
   };
 
+  // Fungsi Manajemen Kegiatan (Tambah, Ganti Nama, Hapus)
+  const handleAddKegiatan = (namaBaru) => {
+    const newId = 'k_' + Date.now();
+    const updated = kegiatanList.concat([{ id: newId, nama: namaBaru, createdAt: Date.now() }]);
+    setKegiatanList(updated);
+    if(kegiatanListRef) kegiatanListRef.set(updated);
+    if(kegiatanDataRef) kegiatanDataRef.child(newId).child('transactions').set([]);
+    setActiveKegiatanId(newId);
+    notify('Kegiatan baru "' + namaBaru + '" berhasil dibuat!');
+  };
+
+  const handleRenameKegiatan = (id, namaBaru) => {
+    const updated = kegiatanList.map(k => k.id === id ? Object.assign({}, k, { nama: namaBaru }) : k);
+    setKegiatanList(updated);
+    if(kegiatanListRef) kegiatanListRef.set(updated);
+    notify('Nama kegiatan diperbarui menjadi "' + namaBaru + '"');
+  };
+
+  const handleDeleteKegiatan = (id, nama) => {
+    if(kegiatanList.length <= 1){
+      notify('Minimal harus ada 1 kegiatan kas aktif!', 'error');
+      return;
+    }
+    if(!confirm('Hapus kegiatan "' + nama + '" dan seluruh riwayat transaksinya?')){
+      return;
+    }
+    const updated = kegiatanList.filter(k => k.id !== id);
+    setKegiatanList(updated);
+    if(kegiatanListRef) kegiatanListRef.set(updated);
+    if(kegiatanDataRef) kegiatanDataRef.child(id).remove();
+    if(activeKegiatanId === id){
+      setActiveKegiatanId(updated[0].id);
+    }
+    notify('Kegiatan "' + nama + '" telah dihapus.');
+  };
+
   const save=list=>{
     setTxs(list);
-    if(txsRef){
-      txsRef.set(list).catch(err => {
+    const currentTxsRef = (kegiatanDataRef && activeKegiatanId) ? kegiatanDataRef.child(activeKegiatanId).child('transactions') : txsRef;
+    if(currentTxsRef){
+      currentTxsRef.set(list).catch(err => {
         console.warn('Firebase save error:', err);
         notify('Gagal menyimpan transaksi ke Firebase! Periksa aturan database.', 'error');
       });
@@ -1895,7 +2212,8 @@ function App(){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;
-    a.download='buku-debet-kredit-'+today()+'.csv';
+    const kSlug = ((currentKegiatan && currentKegiatan.nama) ? currentKegiatan.nama : 'kegiatan').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    a.download='buku-kas-'+kSlug+'-'+today()+'.csv';
     a.click();
     URL.revokeObjectURL(url);
     notify('File CSV berhasil diunduh!');
@@ -1914,7 +2232,8 @@ function App(){
       doc.setFontSize(16);
       doc.setTextColor(17, 17, 17);
       const pdfTitle = (appSettings.appName || 'BUKU DEBET KREDIT').toUpperCase();
-      doc.text(pdfTitle, 14, 18);
+      const currentKName = (currentKegiatan && currentKegiatan.nama) ? currentKegiatan.nama : 'Kegiatan 1';
+      doc.text(pdfTitle + ' • ' + currentKName.toUpperCase(), 14, 18);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
@@ -1996,7 +2315,8 @@ function App(){
         }
       });
 
-      doc.save('buku-debet-kredit-' + today() + '.pdf');
+      const kFileSlug = ((currentKegiatan && currentKegiatan.nama) ? currentKegiatan.nama : 'kegiatan').toLowerCase().replace(/[^a-z0-9]/g, '-');
+      doc.save('buku-kas-' + kFileSlug + '-' + today() + '.pdf');
       notify('File PDF berhasil diunduh!');
       setModal(null);
     } catch(err) {
@@ -2057,8 +2377,51 @@ function App(){
       ),
 
       // Baris 2: Toolbar Tindakan Rapi & Terstruktur
-      // Baris 3: Toolbar Tindakan Rapi & Terstruktur
       h('div',{className:'flex items-center gap-2 flex-wrap no-print pt-0.5'},
+        // 0. Dropdown Menu Pemilih Kegiatan Aktif (Multi-Buku Kas)
+        h('div',{className:'relative inline-block', ref:kegiatanMenuRef},
+          h('button',{
+            type:'button',
+            onClick:()=>setKegiatanMenuOpen(!kegiatanMenuOpen),
+            className:`nb-btn text-xs px-3 py-1.5 font-bold shadow-[3px_3px_0_0_#111] flex items-center gap-1.5 ${kegiatanMenuOpen ? 'canary' : 'bg-white'}`,
+            title:'Pilih Kegiatan Kas Aktif'
+          },
+            h('span',null,'📁 ' + currentKegiatan.nama),
+            h('span',{className:'text-[9px]'},kegiatanMenuOpen ? '▲' : '▼')
+          ),
+
+          // Menu Dropdown Kegiatan
+          kegiatanMenuOpen ? h('div',{
+            className:'absolute left-0 top-full mt-1.5 z-40 bg-white border-2 border-black rounded-xl p-1.5 shadow-[4px_4px_0_0_#111] min-w-[210px] space-y-1',
+            style:{ maxWidth: 'calc(100vw - 32px)' }
+          },
+            h('div',{className:'px-2 py-1 text-[10px] font-black uppercase text-slate-500 border-b border-black/10'},'Pilih Kegiatan / Buku Kas:'),
+            kegiatanList.map(k => h('button',{
+              key: k.id,
+              type: 'button',
+              onClick: () => { setActiveKegiatanId(k.id); setKegiatanMenuOpen(false); notify('Beralih ke "' + k.nama + '"'); },
+              className: `w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between border-0 cursor-pointer ${k.id === activeKegiatanId ? 'bg-canary font-black' : 'hover:bg-slate-100 bg-transparent'}`
+            },
+              h('span',{className:'truncate'},k.nama),
+              k.id === activeKegiatanId ? h('span',{className:'text-xs font-black'},'✓') : null
+            )),
+            h('div',{className:'border-t-2 border-black/10 my-1'}),
+            h('button',{
+              type:'button',
+              onClick:()=>{ setKegiatanMenuOpen(false); openFeature('kegiatan'); },
+              className:'w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-mint flex items-center gap-2 border-0 bg-transparent cursor-pointer'
+            }, h('span',null,'⚙️'), h('span',null,'Kelola Semua Kegiatan'))
+          ) : null
+        ),
+
+        // Tombol Cepat Buka Panel Kelola Kegiatan
+        h('button',{
+          type:'button',
+          onClick:()=>openFeature('kegiatan'),
+          className:`nb-btn text-xs px-2.5 py-1.5 font-bold shadow-[3px_3px_0_0_#111] ${kegiatanModalOpen ? 'mint' : 'canary'}`,
+          title:'Tambah, Ganti Nama, atau Hapus Kegiatan'
+        }, kegiatanModalOpen ? '✕ Tutup Kegiatan' : '+ Kelola Kegiatan'),
+
         // 1. Tombol Utama Cetak PDF
         h('button',{
           type:'button',
@@ -2140,6 +2503,18 @@ function App(){
     ),
 
     // ===== SEMUA PANEL MENYATU DALAM 1 HALAMAN (SENADA DENGAN KELOLA PENGGUNA) =====
+
+    // 0. Panel Kelola Kegiatan Kas (Multi-Buku Kas)
+    kegiatanModalOpen ? h(KegiatanManagementPanel, {
+      kegiatanList: kegiatanList,
+      activeKegiatanId: activeKegiatanId,
+      onSwitch: (id) => { setActiveKegiatanId(id); notify('Membuka kegiatan...'); },
+      onAdd: handleAddKegiatan,
+      onRename: handleRenameKegiatan,
+      onDelete: handleDeleteKegiatan,
+      onClose: () => setKegiatanModalOpen(false),
+      notify: notify
+    }) : null,
 
     // 1. Panel Kelola Pengguna
     userModalOpen ? h(UserManagementPanel, {
@@ -2299,11 +2674,12 @@ function App(){
 
     // Status Badges (100% Cloud Database)
     h('div',{className:'flex flex-wrap items-center gap-2'},
+      h('span',{className:'tag canary text-xs font-bold'},'📁 ' + currentKegiatan.nama),
       h('span',{className:'tag mint text-xs'},'Akun: ' + ('@' + currentUser.username)),
       h('span',{className:'tag text-xs font-bold ' + (isCloudOnline ? 'mint' : 'canary')},
         isCloudOnline ? '🟢 Database Real-time Aktif' : '🟡 Menghubungkan Firebase...'
       ),
-      h('span',{className:'text-xs font-bold mono text-slate-600'},'• '+txs.length+' transaksi tersimpan di Cloud')
+      h('span',{className:'text-xs font-bold mono text-slate-600'},'• '+txs.length+' transaksi di ' + currentKegiatan.nama)
     ),
 
     // 3 Stat Cards
@@ -2412,7 +2788,7 @@ function App(){
     )
   );
 }
-ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+ReactDOM.createRoot(document.getElementById('root')).render(h(ErrorBoundary, null, h(App)));
 </script>
 </body>
 </html>
