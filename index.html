@@ -100,6 +100,12 @@ input[type="password"]{
 }
 .shake { animation: shake .35s ease-in-out; }
 
+@keyframes slideLeft {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slideLeft { animation: slideLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
 @media (hover:none){.nb-card:hover{transform:none;box-shadow:6px 6px 0 0 var(--ink)}}
 @media (max-width:640px){
   .nb-in{font-size:14px;height:42px!important;min-height:42px!important}
@@ -1822,7 +1828,183 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+
+// Komponen Drawer Menu Samping (Sidebar Drawer Neobrutalism)
+function SidebarDrawer({
+  isOpen,
+  onClose,
+  currentUser,
+  currentKegiatan,
+  kegiatanList,
+  activeKegiatanId,
+  onSwitchKegiatan,
+  openFeature,
+  sheetConfig,
+  appSettings,
+  onLogout
+}) {
+  if (!isOpen) return null;
+
+  const isAdmin = (currentUser.role || currentUser.username) === 'admin';
+
+  return h('div', { className: 'fixed inset-0 z-50 overflow-hidden no-print' },
+    // 1. Backdrop Gelap Transparan (Ketuk untuk menutup)
+    h('div', {
+      className: 'fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fadeIn',
+      onClick: onClose
+    }),
+
+    // 2. Panel Sidebar Meluncur dari Kanan
+    h('div', {
+      className: 'fixed top-0 right-0 bottom-0 w-full max-w-[320px] sm:max-w-[340px] bg-white border-l-2 border-black shadow-[-6px_0_0_0_#111] flex flex-col justify-between overflow-y-auto p-4 sm:p-5 space-y-4 animate-slideLeft z-10'
+    },
+      // Bagian Atas: Header & Menu Navigasi
+      h('div', { className: 'space-y-4' },
+        // Header Sidebar
+        h('div', { className: 'flex items-center justify-between pb-3 border-b-2 border-black' },
+          h('div', { className: 'flex items-center gap-2 min-w-0' },
+            h('span', { className: 'text-2xl flex-shrink-0' }, '📂'),
+            h('div', { className: 'min-w-0' },
+              h('h3', { className: 'text-sm sm:text-base font-black uppercase tracking-tight' }, 'Menu Navigasi'),
+              h('p', { className: 'text-[11px] font-bold text-slate-500 truncate flex items-center gap-1.5' },
+                h('span', null, '@' + currentUser.username),
+                h('span', { className: `tag ${isAdmin ? 'mint' : 'lilac'} text-[9px] py-0 px-1.5 font-bold` }, isAdmin ? 'Admin' : 'Staf')
+              )
+            )
+          ),
+          h('button', {
+            type: 'button',
+            onClick: onClose,
+            className: 'w-8 h-8 rounded-lg border-2 border-black bg-white hover:bg-coral hover:text-white flex items-center justify-center font-black text-sm shadow-[2px_2px_0_0_#111] cursor-pointer transition-all flex-shrink-0',
+            title: 'Tutup Menu'
+          }, '✕')
+        ),
+
+        // 1. Kategori: Kegiatan Kas Aktif
+        h('div', { className: 'space-y-1.5' },
+          h('div', { className: 'text-[10px] font-black uppercase tracking-wider text-slate-500 px-1' }, '📁 Kegiatan Kas Aktif'),
+          h('div', { className: 'p-2.5 rounded-xl border-2 border-black bg-cream shadow-[2px_2px_0_0_#111] space-y-2' },
+            h('div', { className: 'flex items-center justify-between text-xs font-black pb-1 border-b border-black/10' },
+              h('span', { className: 'truncate font-bold text-slate-800' }, '📌 ' + currentKegiatan.nama),
+              h('span', { className: 'tag canary text-[9px] py-0 px-1.5 font-bold' }, 'Aktif')
+            ),
+            h('div', { className: 'grid grid-cols-1 gap-1 max-h-32 overflow-y-auto pr-0.5' },
+              kegiatanList.map(k => h('button', {
+                key: k.id,
+                type: 'button',
+                onClick: () => { onSwitchKegiatan(k.id); onClose(); },
+                className: `text-left px-2.5 py-1.5 text-xs font-bold rounded-lg border-2 flex items-center justify-between cursor-pointer transition-colors ${k.id === activeKegiatanId ? 'bg-canary border-black font-black' : 'bg-white border-black/10 hover:bg-slate-50'}`
+              },
+                h('span', { className: 'truncate' }, k.nama),
+                k.id === activeKegiatanId ? h('span', { className: 'text-xs font-black' }, '✓') : null
+              ))
+            ),
+            h('button', {
+              type: 'button',
+              onClick: () => { onClose(); openFeature('kegiatan'); },
+              className: 'nb-btn mint w-full text-xs py-1.5 font-black shadow-[2px_2px_0_0_#111] flex items-center justify-center gap-1.5'
+            }, '+ Kelola / Tambah Kegiatan')
+          )
+        ),
+
+        // 2. Kategori: Laporan & Ekspor Data
+        h('div', { className: 'space-y-1.5 pt-1' },
+          h('div', { className: 'text-[10px] font-black uppercase tracking-wider text-slate-500 px-1' }, '📄 Laporan & Dokumen'),
+          h('div', { className: 'space-y-1.5' },
+            h('button', {
+              type: 'button',
+              onClick: () => { onClose(); openFeature('pdf'); },
+              className: 'nb-btn mint w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '📄'),
+              h('span', { className: 'flex-1 font-bold' }, 'Cetak Laporan PDF')
+            ),
+            h('button', {
+              type: 'button',
+              onClick: () => { onClose(); openFeature('csv'); },
+              className: 'nb-btn w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 hover:bg-canary hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '📤'),
+              h('span', { className: 'flex-1 font-bold' }, 'Ekspor File CSV')
+            ),
+            h('button', {
+              type: 'button',
+              onClick: () => { onClose(); openFeature('impor'); },
+              className: 'nb-btn w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 hover:bg-canary hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '📥'),
+              h('span', { className: 'flex-1 font-bold' }, 'Impor File CSV')
+            )
+          )
+        ),
+
+        // 3. Kategori: Pengaturan & Integrasi (Admin)
+        isAdmin ? h('div', { className: 'space-y-1.5 pt-1' },
+          h('div', { className: 'text-[10px] font-black uppercase tracking-wider text-slate-500 px-1' }, '⚙️ Pengaturan & Integrasi'),
+          h('div', { className: 'space-y-1.5' },
+            h('button', {
+              type: 'button',
+              onClick: () => { onClose(); openFeature('user'); },
+              className: 'nb-btn w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 hover:bg-canary hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '👥'),
+              h('span', { className: 'flex-1 font-bold' }, 'Kelola Akun Pengguna')
+            ),
+            h('button', {
+              type: 'button',
+              onClick: () => { onClose(); openFeature('sheet'); },
+              className: 'nb-btn w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 hover:bg-canary hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '📊'),
+              h('span', { className: 'flex-1 font-bold' }, (sheetConfig && (sheetConfig.sheetUrl || sheetConfig.scriptUrl)) ? 'Tautan Spreadsheet Aktif' : 'Hubungkan Spreadsheet')
+            ),
+            (sheetConfig && sheetConfig.sheetUrl) ? h('a', {
+              href: sheetConfig.sheetUrl,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              className: 'nb-btn w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 bg-cream hover:bg-canary hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '↗️'),
+              h('span', { className: 'flex-1 font-bold' }, 'Buka Spreadsheet Asli')
+            ) : null,
+            h('button', {
+              type: 'button',
+              onClick: () => { onClose(); openFeature('settings'); },
+              className: 'nb-btn w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 hover:bg-canary hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '⚙️'),
+              h('span', { className: 'flex-1 font-bold' }, 'Pengaturan Web & Auto-Logout')
+            )
+          )
+        ) : null
+      ),
+
+      // Bagian Bawah: Reset Data & Tombol Keluar
+      h('div', { className: 'pt-3 border-t-2 border-black space-y-2' },
+        h('button', {
+          type: 'button',
+          onClick: () => { onClose(); openFeature('reset'); },
+          className: 'w-full text-left px-3 py-2 text-xs font-bold rounded-lg border-2 border-black bg-white hover:bg-coral hover:text-black flex items-center gap-2 shadow-[2px_2px_0_0_#111] cursor-pointer transition-all',
+          style: { color: '#e11d48' }
+        },
+          h('span', null, '🗑️'),
+          h('span', null, 'Reset Semua Data Kas')
+        ),
+        h('button', {
+          type: 'button',
+          onClick: () => { onClose(); onLogout(); },
+          className: 'nb-btn coral w-full py-2.5 text-xs font-black shadow-[3px_3px_0_0_#111] flex items-center justify-center gap-2'
+        },
+          h('span', null, '🚪'),
+          h('span', null, 'Keluar dari Akun')
+        )
+      )
+    )
+  );
+}
+
 function App(){
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessionExpiredMsg, setSessionExpiredMsg] = useState('');
 
   // HARUS LOGIN saat pertama kali membuka web aplikasi:
@@ -1936,6 +2118,7 @@ function App(){
   };
 
   const openFeature=(featType, data=null)=>{
+    setSidebarOpen(false);
     // Jika fitur yang sama diklik kembali, tutup (toggle)
     if(featType === 'user'){
       const next = !userModalOpen;
@@ -2532,150 +2715,90 @@ function App(){
       h('span',{className:'text-[10px] bg-white px-2 py-0.5 rounded border border-black'},'Tunggu sebentar')
     ) : null,
 
-    // Header Title Besar Paling Atas + Tombol Keluar Ikon di Samping Kanan Judul
-    h('header',{className:'space-y-2.5 pb-1 border-b-2 border-black/10'},
-      // Baris 1: Judul Aplikasi (Kiri) dan Tombol Keluar (Kanan, Ikon Saja tanpa Teks)
+    // Header Title Bersih 1 Baris + Tombol Hamburger Menu Sidebar & Pemilih Kegiatan Cepat
+    h('header',{className:'pb-2 border-b-2 border-black/10'},
       h('div',{className:'flex items-center justify-between gap-2'},
+        // Judul Aplikasi (Kiri)
         h('h1',{className:'inline-block font-normal min-w-0'},
           h('span',{
             className:`tag ${appSettings.themeColor || 'pink'} font-extrabold tracking-tight truncate`,
-            style:{borderRadius:'12px',padding:'.35rem .95rem',boxShadow:'4px 4px 0 0 #111',fontSize:'1.3rem',letterSpacing:'-0.01em'}
+            style:{borderRadius:'12px',padding:'.35rem .85rem',boxShadow:'3px 3px 0 0 #111',fontSize:'1.2rem',letterSpacing:'-0.01em'}
           }, appSettings.appName || 'BUKU DEBET KREDIT')
         ),
-        // Tombol Keluar (Ikon saja di samping kanan judul tanpa teks nama)
-        h('button',{
-          type:'button',
-          onClick:handleLogout,
-          className:'nb-btn coral p-2 h-9 w-9 flex items-center justify-center shadow-[3px_3px_0_0_#111] flex-shrink-0 cursor-pointer',
-          title:'Keluar dari akun (@' + currentUser.username + ')'
-        }, h(IcoLogout))
-      ),
 
-      // Baris 2: Toolbar Tindakan Rapi & Terstruktur
-      h('div',{className:'flex items-center gap-2 flex-wrap no-print pt-0.5'},
-        // 0. Dropdown Menu Pemilih Kegiatan Aktif (Multi-Buku Kas)
-        h('div',{className:'relative inline-block', ref:kegiatanMenuRef},
-          h('button',{
-            type:'button',
-            onClick:()=>setKegiatanMenuOpen(!kegiatanMenuOpen),
-            className:`nb-btn text-xs px-3 py-1.5 font-bold shadow-[3px_3px_0_0_#111] flex items-center gap-1.5 ${kegiatanMenuOpen ? 'canary' : 'bg-white'}`,
-            title:'Pilih Kegiatan Kas Aktif'
-          },
-            h('span',null,'📁 ' + currentKegiatan.nama),
-            h('span',{className:'text-[9px]'},kegiatanMenuOpen ? '▲' : '▼')
-          ),
-
-          // Menu Dropdown Kegiatan
-          kegiatanMenuOpen ? h('div',{
-            className:'absolute left-0 top-full mt-1.5 z-40 bg-white border-2 border-black rounded-xl p-1.5 shadow-[4px_4px_0_0_#111] min-w-[210px] space-y-1',
-            style:{ maxWidth: 'calc(100vw - 32px)' }
-          },
-            h('div',{className:'px-2 py-1 text-[10px] font-black uppercase text-slate-500 border-b border-black/10'},'Pilih Kegiatan / Buku Kas:'),
-            kegiatanList.map(k => h('button',{
-              key: k.id,
-              type: 'button',
-              onClick: () => { setActiveKegiatanId(k.id); setKegiatanMenuOpen(false); notify('Beralih ke "' + k.nama + '"'); },
-              className: `w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between border-0 cursor-pointer ${k.id === activeKegiatanId ? 'bg-canary font-black' : 'hover:bg-slate-100 bg-transparent'}`
+        // Kontrol Kanan: Pemilih Kegiatan Ringkas + Tombol Menu Sidebar (☰ Menu)
+        h('div',{className:'flex items-center gap-1.5 sm:gap-2 flex-shrink-0 no-print'},
+          // 1. Pemilih Kegiatan Kas Singkat
+          h('div',{className:'relative inline-block', ref:kegiatanMenuRef},
+            h('button',{
+              type:'button',
+              onClick:()=>setKegiatanMenuOpen(!kegiatanMenuOpen),
+              className:`nb-btn text-xs px-2.5 py-1.5 font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-1.5 ${kegiatanMenuOpen ? 'canary' : 'bg-white'}`,
+              title:'Pilih Kegiatan Kas Aktif'
             },
-              h('span',{className:'truncate'},k.nama),
-              k.id === activeKegiatanId ? h('span',{className:'text-xs font-black'},'✓') : null
-            )),
-            h('div',{className:'border-t-2 border-black/10 my-1'}),
-            h('button',{
-              type:'button',
-              onClick:()=>{ setKegiatanMenuOpen(false); openFeature('kegiatan'); },
-              className:'w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-mint flex items-center gap-2 border-0 bg-transparent cursor-pointer'
-            }, h('span',null,'⚙️'), h('span',null,'Kelola Semua Kegiatan'))
-          ) : null
-        ),
+              h('span',null,'📁 ' + currentKegiatan.nama),
+              h('span',{className:'text-[9px]'},kegiatanMenuOpen ? '▲' : '▼')
+            ),
 
-        // Tombol Cepat Buka Panel Kelola Kegiatan
-        h('button',{
-          type:'button',
-          onClick:()=>openFeature('kegiatan'),
-          className:`nb-btn text-xs px-2.5 py-1.5 font-bold shadow-[3px_3px_0_0_#111] ${kegiatanModalOpen ? 'mint' : 'canary'}`,
-          title:'Tambah, Ganti Nama, atau Hapus Kegiatan'
-        }, kegiatanModalOpen ? '✕ Tutup Kegiatan' : '+ Kelola Kegiatan'),
-
-        // 1. Tombol Utama Cetak PDF
-        h('button',{
-          type:'button',
-          onClick:()=>openFeature('pdf'),
-          className:'nb-btn mint text-xs px-3 py-1.5 font-bold shadow-[3px_3px_0_0_#111] flex items-center gap-1'
-        }, '📄 Cetak PDF'),
-
-        // 2. Tombol Kelola Pengguna (Khusus Admin)
-        ((currentUser.role || currentUser.username) === 'admin') ? h('button',{
-          type:'button',
-          onClick:()=>openFeature('user'),
-          className:`nb-btn text-xs px-3 py-1.5 font-bold shadow-[3px_3px_0_0_#111] ${userModalOpen ? 'mint' : 'canary'}`,
-          title:'Kelola Akun Pengguna'
-        }, userModalOpen ? '✕ Tutup Pengguna' : '👥 Kelola Pengguna') : null,
-
-        // 3. Tombol Google Spreadsheet (Khusus Admin)
-        ((currentUser.role || currentUser.username) === 'admin') ? h('button', {
-          type: 'button',
-          onClick: () => openFeature('sheet'),
-          className: `nb-btn text-xs px-2.5 py-1.5 font-bold shadow-[3px_3px_0_0_#111] ${(sheetConfig && (sheetConfig.sheetUrl || sheetConfig.scriptUrl)) ? 'lilac' : 'canary'}`,
-          title: 'Atur Tautan Google Spreadsheet'
-        }, (sheetConfig && (sheetConfig.sheetUrl || sheetConfig.scriptUrl)) ? '🔗 Sheet' : '📊 Hubungkan') : null,
-
-        // 4. Pintasan Buka Sheet jika sudah ada link
-        (sheetConfig && sheetConfig.sheetUrl) ? h('a', {
-          href: sheetConfig.sheetUrl,
-          target: '_blank',
-          rel: 'noopener noreferrer',
-          className: 'nb-btn text-xs px-2.5 py-1.5 font-bold shadow-[3px_3px_0_0_#111] bg-white flex items-center gap-1',
-          title: 'Buka Google Spreadsheet di Tab Baru'
-        }, '↗️ Buka') : null,
-
-        // 5. Menu Dropdown Alat Data (ANTI-TERPOTONG: menggunakan left-0 agar membuka ke arah dalam layar)
-        h('div',{className:'relative inline-block', ref:toolsMenuRef},
-          h('button',{
-            type:'button',
-            onClick:()=>setToolsMenuOpen(!toolsMenuOpen),
-            className:`nb-btn text-xs px-3 py-1.5 font-bold shadow-[3px_3px_0_0_#111] flex items-center gap-1.5 ${toolsMenuOpen ? 'canary' : 'bg-white'}`,
-            title:'Menu Alat Data & Pengaturan'
-          },
-            h('span',null,'⋯ Alat Data'),
-            h('span',{className:'text-[9px]'},toolsMenuOpen ? '▲' : '▼')
+            kegiatanMenuOpen ? h('div',{
+              className:'absolute right-0 top-full mt-1.5 z-40 bg-white border-2 border-black rounded-xl p-1.5 shadow-[4px_4px_0_0_#111] min-w-[200px] space-y-1',
+              style:{ maxWidth: 'calc(100vw - 32px)' }
+            },
+              h('div',{className:'px-2 py-1 text-[10px] font-black uppercase text-slate-500 border-b border-black/10'},'Pilih Kegiatan / Buku Kas:'),
+              kegiatanList.map(k => h('button',{
+                key: k.id,
+                type: 'button',
+                onClick: () => { setActiveKegiatanId(k.id); setKegiatanMenuOpen(false); notify('Beralih ke "' + k.nama + '"'); },
+                className: `w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between border-0 cursor-pointer ${k.id === activeKegiatanId ? 'bg-canary font-black' : 'hover:bg-slate-100 bg-transparent'}`
+              },
+                h('span',{className:'truncate'},k.nama),
+                k.id === activeKegiatanId ? h('span',{className:'text-xs font-black'},'✓') : null
+              )),
+              h('div',{className:'border-t-2 border-black/10 my-1'}),
+              h('button',{
+                type:'button',
+                onClick:()=>{ setKegiatanMenuOpen(false); openFeature('kegiatan'); },
+                className:'w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-mint flex items-center gap-2 border-0 bg-transparent cursor-pointer'
+              }, h('span',null,'⚙️'), h('span',null,'Kelola Semua Kegiatan'))
+            ) : null
           ),
 
-          // Popover Dropdown Anti-Terpotong
-          toolsMenuOpen ? h('div',{
-            className:'absolute left-0 top-full mt-1.5 z-40 bg-white border-2 border-black rounded-xl p-1.5 shadow-[4px_4px_0_0_#111] min-w-[185px] space-y-1',
-            style:{ maxWidth: 'calc(100vw - 32px)' }
+          // 2. Tombol Cetak PDF Cepat di Desktop
+          h('button',{
+            type:'button',
+            onClick:()=>openFeature('pdf'),
+            className:'nb-btn mint text-xs px-2.5 py-1.5 font-bold shadow-[2px_2px_0_0_#111] hidden md:flex items-center gap-1',
+            title:'Cetak Laporan PDF'
+          }, '📄 Cetak PDF'),
+
+          // 3. Tombol Utama Buka Menu Sidebar (☰ Menu)
+          h('button',{
+            type:'button',
+            onClick:()=>setSidebarOpen(true),
+            className:'nb-btn canary text-xs px-3 py-1.5 font-black shadow-[3px_3px_0_0_#111] flex items-center gap-1.5 cursor-pointer',
+            title:'Buka Menu Navigasi & Alat Kas'
           },
-            h('button',{
-              type:'button',
-              onClick:()=>{ setToolsMenuOpen(false); setImpMsg(null); setImpTeks(''); openFeature('impor'); },
-              className:'w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-canary flex items-center gap-2 border-0 bg-transparent cursor-pointer'
-            }, h('span',null,'📥'), h('span',null,'Impor File CSV')),
-
-            h('button',{
-              type:'button',
-              onClick:()=>{ setToolsMenuOpen(false); openFeature('csv'); },
-              className:'w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-canary flex items-center gap-2 border-0 bg-transparent cursor-pointer'
-            }, h('span',null,'📤'), h('span',null,'Ekspor File CSV')),
-
-            h('button',{
-              type:'button',
-              onClick:()=>{ setToolsMenuOpen(false); openFeature('settings'); },
-              className:'w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-canary flex items-center gap-2 border-0 bg-transparent cursor-pointer'
-            }, h('span',null,'⚙️'), h('span',null,'Pengaturan Web')),
-
-            h('div',{className:'border-t-2 border-black/10 my-1'}),
-
-            h('button',{
-              type:'button',
-              onClick:()=>{ setToolsMenuOpen(false); openFeature('reset'); },
-              className:'w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-coral hover:text-black flex items-center gap-2 border-0 bg-transparent cursor-pointer',
-              style:{color:'#e11d48'}
-            }, h('span',null,'🗑️'), h('span',null,'Reset Semua Data'))
-          ) : null
+            h('span',{className:'text-base leading-none'},'☰'),
+            h('span',{className:'font-black'},'Menu')
+          )
         )
       )
     ),
+
+    // RENDER DRAWER SIDEBAR
+    h(SidebarDrawer, {
+      isOpen: sidebarOpen,
+      onClose: () => setSidebarOpen(false),
+      currentUser: currentUser,
+      currentKegiatan: currentKegiatan,
+      kegiatanList: kegiatanList,
+      activeKegiatanId: activeKegiatanId,
+      onSwitchKegiatan: (id) => { setActiveKegiatanId(id); notify('Membuka kegiatan...'); },
+      openFeature: openFeature,
+      sheetConfig: sheetConfig,
+      appSettings: appSettings,
+      onLogout: handleLogout
+    }),
 
     // ===== SEMUA PANEL MENYATU DALAM 1 HALAMAN (SENADA DENGAN KELOLA PENGGUNA) =====
 
