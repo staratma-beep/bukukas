@@ -1659,18 +1659,20 @@ function KegiatanManagementPanel({ kegiatanList, activeKegiatanId, onSwitch, onA
   };
 
   return h('div', { className: 'nb-card p-3 sm:p-4 border-2 border-black bg-white shadow-[4px_4px_0_0_#111] no-print space-y-3 my-2.5 animate-fadeIn' },
-    // Header Panel Bersih
-    h('div', { className: 'flex justify-between items-center pb-2 border-b-2 border-black' },
-      h('div', { className: 'flex items-center gap-2 min-w-0' },
-        h('h3', { className: 'text-sm sm:text-base font-extrabold tracking-tight truncate' }, '📁 Kelola Daftar Kegiatan Kas'),
-        h('span', { className: 'tag canary text-[10px] py-0 px-2 font-bold' }, kegiatanList.length + ' Kegiatan')
+    // Header Panel Bersih & Rapi (Anti-Terpotong & 1 Baris Seimbang)
+    h('div', { className: 'flex justify-between items-center gap-2 pb-2.5 border-b-2 border-black' },
+      h('div', { className: 'flex items-center gap-2 min-w-0 flex-1' },
+        h('h3', { className: 'text-sm sm:text-base font-extrabold tracking-tight truncate' }, '📁 Kelola Kegiatan')
       ),
-      h('button', {
-        type: 'button',
-        onClick: onClose,
-        className: 'w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 border-black bg-white hover:bg-coral hover:text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-[2px_2px_0_0_#111] cursor-pointer flex-shrink-0 transition-all',
-        title: 'Tutup Panel'
-      }, '✕')
+      h('div', { className: 'flex items-center gap-2 flex-shrink-0' },
+        h('span', { className: 'tag canary text-[10px] sm:text-xs py-0.5 px-2.5 font-bold whitespace-nowrap flex-shrink-0' }, kegiatanList.length + ' Kegiatan'),
+        h('button', {
+          type: 'button',
+          onClick: onClose,
+          className: 'w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 border-black bg-white hover:bg-coral hover:text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-[2px_2px_0_0_#111] cursor-pointer flex-shrink-0 transition-all',
+          title: 'Tutup Panel'
+        }, '✕')
+      )
     ),
 
     err ? h('div', { className: 'p-2.5 rounded-lg border-2 border-black text-xs font-bold shadow-[2px_2px_0_0_#111]', style: { backgroundColor: '#ff6b5e', color: '#111111' } },
