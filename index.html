@@ -1934,6 +1934,14 @@ function SidebarDrawer({
           h('div', { className: 'space-y-1.5' },
             h('button', {
               type: 'button',
+              onClick: () => { onClose(); setChartOpen(true); },
+              className: 'nb-btn w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 bg-cream hover:bg-canary hover:translate-x-0.5 transition-all'
+            },
+              h('span', { className: 'text-base' }, '📊'),
+              h('span', { className: 'flex-1 font-bold' }, 'Buka Grafik Arus Kas')
+            ),
+            h('button', {
+              type: 'button',
               onClick: () => { onClose(); openFeature('pdf'); },
               className: 'nb-btn mint w-full text-left p-2.5 text-xs font-bold shadow-[2px_2px_0_0_#111] flex items-center gap-2.5 hover:translate-x-0.5 transition-all'
             },
@@ -2083,6 +2091,154 @@ function PopupModal({ title, onClose, onConfirm, confirmText, confirmClass, chil
   );
 }
 
+
+// Komponen Grafik Arus Kas Sederhana (Bisa Buka - Tutup / Collapsible Neobrutalism)
+function SimpleChartCard({ txs, totD, totK, saldo, isOpen, onToggle, currentKegiatan }) {
+  const totalVolume = totD + totK;
+  const pctD = totalVolume > 0 ? Math.round((totD / totalVolume) * 100) : 0;
+  const pctK = totalVolume > 0 ? (100 - pctD) : 0;
+
+  // Kelompokkan data transaksi per tanggal (maksimal 7 tanggal aktif terakhir)
+  const chartData = useMemo(() => {
+    const byDate = {};
+    txs.forEach(t => {
+      const d = t.tanggal;
+      if (!byDate[d]) byDate[d] = { tanggal: d, D: 0, K: 0 };
+      if (t.jenis === 'D') byDate[d].D += t.jumlah;
+      else if (t.jenis === 'K') byDate[d].K += t.jumlah;
+    });
+    const sortedDates = Object.keys(byDate).sort();
+    const lastDates = sortedDates.slice(-7);
+    return lastDates.map(d => byDate[d]);
+  }, [txs]);
+
+  // Cari nominal tertinggi untuk skala tinggi grafik batang
+  const maxVal = useMemo(() => {
+    let m = 0;
+    chartData.forEach(item => {
+      if (item.D > m) m = item.D;
+      if (item.K > m) m = item.K;
+    });
+    return m > 0 ? m : 1;
+  }, [chartData]);
+
+  return h('div', { className: 'nb-card bg-white border-2 border-black rounded-xl shadow-[4px_4px_0_0_#111] overflow-hidden no-print transition-all' },
+    // 1. Header Kartu (Bisa diklik untuk Buka / Tutup)
+    h('div', {
+      onClick: onToggle,
+      className: 'p-3 sm:p-4 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-slate-50 transition-colors'
+    },
+      h('div', { className: 'flex items-center gap-2 min-w-0' },
+        h('span', { className: 'text-lg sm:text-xl flex-shrink-0' }, '📊'),
+        h('div', { className: 'min-w-0' },
+          h('h3', { className: 'text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 truncate' },
+            'Grafik Arus Kas • ' + currentKegiatan.nama
+          ),
+          h('p', { className: 'text-[10px] text-slate-500 font-semibold' },
+            isOpen ? 'Ketuk untuk menyembunyikan diagram' : 'Ketuk untuk melihat diagram arus kas'
+          )
+        )
+      ),
+      h('button', {
+        type: 'button',
+        onClick: (e) => { e.stopPropagation(); onToggle(); },
+        className: `nb-btn text-xs py-1 px-2.5 sm:px-3 font-black shadow-[2px_2px_0_0_#111] flex items-center gap-1.5 flex-shrink-0 ${isOpen ? 'bg-canary' : 'bg-white'}`,
+        title: isOpen ? 'Tutup Tampilan Grafik' : 'Buka Tampilan Grafik'
+      },
+        h('span', null, isOpen ? '▲' : '▼'),
+        h('span', { className: 'hidden sm:inline font-black' }, isOpen ? 'Tutup Grafik' : 'Buka Grafik')
+      )
+    ),
+
+    // 2. Isi Grafik (Hanya tampil saat terbuka)
+    isOpen ? h('div', { className: 'p-3 sm:p-5 pt-0 border-t-2 border-black/10 space-y-4 sm:space-y-5 animate-fadeIn' },
+      
+      // Bagian A: Diagram Batang Proporsi Pemasukan vs Pengeluaran
+      h('div', { className: 'space-y-2 pt-3' },
+        h('div', { className: 'flex items-center justify-between text-xs font-black' },
+          h('span', { className: 'flex items-center gap-1.5 text-emerald-800' },
+            h('span', { className: 'w-2.5 h-2.5 rounded-full bg-mint border border-black inline-block' }),
+            'Pemasukan (Debet): ' + pctD + '%'
+          ),
+          h('span', { className: 'flex items-center gap-1.5 text-rose-800' },
+            'Pengeluaran (Kredit): ' + pctK + '%',
+            h('span', { className: 'w-2.5 h-2.5 rounded-full bg-coral border border-black inline-block' })
+          )
+        ),
+
+        // Batang Proporsi 2 Warna
+        h('div', {
+          className: 'w-full h-7 rounded-xl border-2 border-black overflow-hidden flex bg-slate-100 shadow-[2px_2px_0_0_#111]'
+        },
+          pctD > 0 ? h('div', {
+            style: { width: pctD + '%' },
+            className: 'bg-mint h-full flex items-center justify-center font-black text-[11px] text-slate-900 border-r-2 border-black transition-all'
+          }, pctD >= 15 ? (pctD + '%') : '') : null,
+          pctK > 0 ? h('div', {
+            style: { width: pctK + '%' },
+            className: 'bg-coral h-full flex items-center justify-center font-black text-[11px] text-white transition-all'
+          }, pctK >= 15 ? (pctK + '%') : '') : null
+        ),
+
+        // Label Ringkasan Nominal
+        h('div', { className: 'flex justify-between text-[11px] font-bold mono text-slate-600 px-0.5' },
+          h('span', null, 'Total Masuk: ' + rp(totD)),
+          h('span', null, 'Total Keluar: ' + rp(totK))
+        )
+      ),
+
+      // Bagian B: Grafik Batang Mutasi Harian (Maks. 7 Tanggal Terakhir)
+      h('div', { className: 'space-y-2 pt-2 border-t border-black/10' },
+        h('div', { className: 'flex items-center justify-between' },
+          h('h4', { className: 'text-[11px] font-black uppercase tracking-wider text-slate-700' }, 'Aktivitas Harian (7 Periode Terakhir)'),
+          h('div', { className: 'flex items-center gap-3 text-[10px] font-bold' },
+            h('span', { className: 'flex items-center gap-1 text-slate-700' }, h('span', { className: 'w-2 h-2 rounded bg-mint border border-black' }), 'Debet'),
+            h('span', { className: 'flex items-center gap-1 text-slate-700' }, h('span', { className: 'w-2 h-2 rounded bg-coral border border-black' }), 'Kredit')
+          )
+        ),
+
+        chartData.length === 0 ? h('div', {
+          className: 'p-4 rounded-xl border-2 border-dashed border-black/20 text-center text-xs font-bold text-slate-500 bg-cream'
+        }, 'Belum ada data transaksi yang tercatat pada kegiatan ini.') :
+        
+        // Grid Visual Batang (Bar Chart)
+        h('div', { className: 'pt-2 overflow-x-auto pb-1' },
+          h('div', { className: 'flex items-end justify-between gap-2 sm:gap-4 min-w-[280px] h-36 px-2 border-b-2 border-black pb-1' },
+            chartData.map((item) => {
+              const hD = Math.max(4, Math.round((item.D / maxVal) * 110));
+              const hK = Math.max(4, Math.round((item.K / maxVal) * 110));
+
+              return h('div', { key: item.tanggal, className: 'flex-1 flex flex-col items-center justify-end h-full gap-1 min-w-[34px]' },
+                // Pasangan Batang Debet & Kredit
+                h('div', { className: 'flex items-end justify-center gap-1 w-full h-[115px]' },
+                  // Batang Debet
+                  item.D > 0 ? h('div', {
+                    style: { height: hD + 'px' },
+                    className: 'w-3 sm:w-4 rounded-t-md bg-mint border-2 border-black shadow-[1px_0_0_0_#111] hover:brightness-105 transition-all cursor-pointer',
+                    title: tgl(item.tanggal) + ' - Masuk: ' + rp(item.D)
+                  }) : h('div', { className: 'w-3 sm:w-4 h-1 rounded-sm bg-slate-200' }),
+
+                  // Batang Kredit
+                  item.K > 0 ? h('div', {
+                    style: { height: hK + 'px' },
+                    className: 'w-3 sm:w-4 rounded-t-md bg-coral border-2 border-black shadow-[1px_0_0_0_#111] hover:brightness-105 transition-all cursor-pointer',
+                    title: tgl(item.tanggal) + ' - Keluar: ' + rp(item.K)
+                  }) : h('div', { className: 'w-3 sm:w-4 h-1 rounded-sm bg-slate-200' })
+                ),
+
+                // Label Tanggal
+                h('span', { className: 'text-[9px] font-bold mono text-slate-600 truncate max-w-full text-center' },
+                  item.tanggal.slice(8, 10) + '/' + item.tanggal.slice(5, 7)
+                )
+              );
+            })
+          )
+        )
+      )
+    ) : null
+  );
+}
+
 function App(){
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessionExpiredMsg, setSessionExpiredMsg] = useState('');
@@ -2116,6 +2272,23 @@ function App(){
       return 'table';
     }
   });
+
+  // Status Tampilan Grafik: Buka / Tutup (Collapsible)
+  const [chartOpen, setChartOpen] = useState(() => {
+    try {
+      return safeStorage.getItem('buku-kas-chart-open') === 'true';
+    } catch(e) {
+      return false;
+    }
+  });
+
+  const handleToggleChart = () => {
+    setChartOpen(prev => {
+      const next = !prev;
+      try { safeStorage.setItem('buku-kas-chart-open', String(next)); } catch(e){}
+      return next;
+    });
+  };
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -3131,6 +3304,17 @@ function App(){
       stat('Total Debet',rp(totD),'mint'),
       stat('Total Kredit',rp(totK),'coral'),
       stat('Saldo (Debet - Kredit)',rp(saldo),saldo<0?'pink':'canary')),
+
+    // Kartu Grafik Keuangan Sederhana (Bisa Buka - Tutup / Collapsible Neobrutalism)
+    h(SimpleChartCard, {
+      txs: txs,
+      totD: totD,
+      totK: totK,
+      saldo: saldo,
+      isOpen: chartOpen,
+      onToggle: handleToggleChart,
+      currentKegiatan: currentKegiatan
+    }),
 
     // POP-UP MODAL TAMBAH / EDIT TRANSAKSI (Melayang di Tengah Layar dengan Backdrop Blur)
     formModalOpen ? h('div', { className: 'fixed inset-0 z-50 overflow-y-auto no-print' },
